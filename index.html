@@ -380,7 +380,7 @@ const WPN={
   roller:{name:'ローラー',desc:'撃ちながら動くと太い道を塗り、当たった敵を一撃で倒す。止まって撃つとインクを飛ばす。',range:300,pref:20,cool:.6,cost:8,rollCost:9,rollR:26,rollDmg:140,fireSlow:.9},
   charger:{name:'チャージャー',desc:'押してためて、離して発射。フルチャージで遠くの敵を一撃で倒す。',range:650,pref:430,chargeT:1,cost:18,spd:1500,dmg:130,trailR:9,fireSlow:.45},
   spinner:{name:'スピナー',desc:'押して回転をため、離すと最大18発を連射。射程が長く塗りも強いが、ため中は動きがおそい。',range:440,pref:280,chargeT:.75,cost:16,spd:760,life:.31,dmg:17,spread:.1,trailR:10,splatR:18,fireSlow:.5},
-  shotgun:{name:'ショットガン',desc:'弾を8発、扇形に散らして撃つ。近づいて全弾当てれば一撃。離れるほど当たりにくい。',range:240,pref:105,cool:.75,cost:7,spd:620,life:.13,dmg:15,spread:.5,trailR:8,splatR:15,fireSlow:.8},
+  shotgun:{name:'ショットガン',desc:'弾を8発、扇形に散らして撃つ。近距離なら1発当たるだけで一撃。少し離れると3〜4発必要で、遠いと弱い。',range:240,pref:105,cool:.75,cost:7,spd:620,life:.13,dmg:15,spread:.5,trailR:8,splatR:15,fireSlow:.8},
   slosher:{name:'バケツ',desc:'インクの塊を山なりに投げる。壁の向こうにも届き、2発当てれば敵を倒せる。',range:320,pref:190,cool:.6,cost:7,dmg:60,fireSlow:.75},
   blaster:{name:'ブラスター',desc:'弾が爆発する。直撃で一撃、まわりにも爆風ダメージ。連射はおそい。',range:380,pref:230,cool:.85,cost:9,spd:520,life:.42,dmg:125,spread:.03,trailR:9,splatR:0,fireSlow:.8},
 };
@@ -568,7 +568,7 @@ const FIRE={
     storms.push({x:tx,y:ty,t:6,tick:0,team:f.team,owner:f,seed:(Math.abs(Math.round(tx*7+ty*13))%2147483646)+1});if(f.isP)say('インクストーム！',TEAM[f.team].c);if(near(f))snd(180,.6,'sine',.05,.5);},
   7:(f)=>{f.laserT=1.5;if(f.isP)say('メガレーザー！',TEAM[f.team].c);if(near(f))snd(90,1.2,'sawtooth',.05,3);},
   8:(f,x,y,a)=>{const w=WPN.spinner;fireBullet(f,x,y,a,{spd:w.spd,life:w.life,dmg:w.dmg,trailR:w.trailR,splatR:w.splatR});if(f.isP)snd(700+Math.random()*150,.04,'square',.014,.5);},
-  18:(f,x,y,a)=>{const w=WPN.shotgun,J=[.02,-.03,.04,-.01,.03,-.04,.01,-.02];for(let i=0;i<8;i++)fireBullet(f,x,y,a+(i/7-.5)*w.spread+J[i],{spd:w.spd*(i%2?.92:1),life:w.life,dmg:w.dmg,trailR:w.trailR,splatR:w.splatR});
+  18:(f,x,y,a)=>{const w=WPN.shotgun,J=[.02,-.03,.04,-.01,.03,-.04,.01,-.02];for(let i=0;i<8;i++)fireBullet(f,x,y,a+(i/7-.5)*w.spread+J[i],{spd:w.spd*(i%2?.92:1),life:w.life,dmg:w.dmg,trailR:w.trailR,splatR:w.splatR,sg:1,ox:x,oy:y});
     if(near(f))snd(150,.16,'sawtooth',f.isP?.06:.025,.4);},
   9:(f,x,y,a)=>{for(let i=0;i<3;i++){const d=95+i*70;lobs.push({sx:x,sy:y,tx:Math.max(0,Math.min(W,x+Math.cos(a)*d)),ty:Math.max(0,Math.min(H,y+Math.sin(a)*d)),t:0,dur:.26+i*.06,team:f.team,owner:f});}if(near(f))snd(260,.15,'triangle',f.isP?.05:.02,.6);},
   5:(f,x,y)=>{explode(x,y,f.team,f,155,135,130);rings.push({x,y,r:20,max:200,c:'#fff',life:.5});if(f.isP)say('インクバースト！',TEAM[f.team].c);},
@@ -991,7 +991,7 @@ function update(dt){
       else addSp(b.owner,paint(b.x-b.vx*.02,b.y-b.vy*.02,16,b.team));}
     else for(const f of fighters){
       if(f.team===b.team||f.dead>0)continue;
-      if(Math.abs(b.z-((f.h||0)+16))<24&&(f.x-b.x)**2+(f.y-b.y)**2<(f.r+5)**2){damage(f,b.dmg,b.owner);dead=true;burst(b.x,b.y,TEAM[b.team].c,5,150);
+      if(Math.abs(b.z-((f.h||0)+16))<24&&(f.x-b.x)**2+(f.y-b.y)**2<(f.r+5)**2){let dm=b.dmg;if(b.sg&&!b.fall){const dd=Math.hypot(f.x-b.ox,f.y-b.oy);dm=dd<80?110:dd<135?34:b.dmg;}damage(f,dm,b.owner);dead=true;burst(b.x,b.y,TEAM[b.team].c,5,150);
         if(b.blast)explode(b.x,b.y,b.team,b.owner,48,55,58,true);break;}
     }
     if(!dead)for(const d of decoys){if(d.team===b.team||b.z>45)continue;if((d.x-b.x)**2+(d.y-b.y)**2<18*18){d.hp-=b.dmg;dead=true;burst(b.x,b.y,TEAM[b.team].c,4,120);break;}}
