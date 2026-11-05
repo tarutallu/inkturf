@@ -13,6 +13,9 @@ body.tps #spBtn{top:auto;bottom:calc(150px + env(safe-area-inset-bottom));right:
 #nogl{display:none;position:fixed;left:0;right:0;bottom:0;background:#a61b1b;color:#fff;padding:10px;text-align:center;z-index:9}
 .rb{white-space:pre-line;position:fixed;width:66px;height:66px;border-radius:50%;border:3px solid rgba(255,255,255,.85);color:#fff;font-weight:800;font-size:13px;display:none;align-items:center;justify-content:center;text-align:center;line-height:1.1;touch-action:none;-webkit-tap-highlight-color:transparent;box-shadow:0 4px 0 rgba(0,0,0,.35);z-index:2}
 #bombBtn{right:calc(16px + env(safe-area-inset-right));top:48%;background:rgba(40,30,70,.75)}
+#skillBtn{right:calc(92px + env(safe-area-inset-right));top:calc(48% + 32px);background:rgba(40,30,70,.75);font-size:11px}
+body.tps #skillBtn{top:auto;bottom:calc(184px + env(safe-area-inset-bottom));right:calc(140px + env(safe-area-inset-right))}
+#skillBtn.on{background:#ffd23f;color:#1b1530}#skillBtn.ready{animation:pulse .6s infinite alternate}
 #jumpBtn{right:calc(16px + env(safe-area-inset-right));top:calc(48% + 76px);background:rgba(40,30,70,.75)}
 body.tps #jumpBtn{top:auto;bottom:calc(104px + env(safe-area-inset-bottom));right:calc(140px + env(safe-area-inset-right))}
 #spBtn{right:calc(92px + env(safe-area-inset-right));top:calc(48% - 44px);background:rgba(40,30,70,.75)}
@@ -82,6 +85,7 @@ input.tx{font-size:16px;padding:9px 12px;border-radius:12px;border:2px solid rgb
 <div id="bombBtn" class="rb">ボム</div>
 <div id="spBtn" class="rb">SP</div>
 <div id="jumpBtn" class="rb">ジャンプ</div>
+<div id="skillBtn" class="rb">スキル</div>
 
 <div id="menu" class="ov"><div class="inner">
   <h1>インク・ターフ 3D</h1>
@@ -121,7 +125,7 @@ input.tx{font-size:16px;padding:9px 12px;border-radius:12px;border:2px solid rgb
     <div class="lbl2">スペシャル</div><div id="g-cps"></div>
     <div class="lbl2">スキル</div><div id="g-cpk"></div>
   </section>
-  <section><h3>スキル</h3><div class="chips" id="g-skill"></div><div class="desc" id="d-skill"></div></section>
+  <section><h3>スキル</h3><div class="chips" id="g-skill"></div><div class="desc" id="d-skill"></div><div class="desc" style="color:#ffd23f">試合中に1キルすると解放。「スキル」ボタン（PCはRキー）で好きなときにON/OFFできる。</div></section>
   <section><h3>サブ（ボム）</h3><div class="chips" id="g-sub"></div><div class="desc" id="d-sub"></div></section>
   <section><h3>スペシャル（SP）</h3><div class="chips" id="g-sp"></div><div class="desc" id="d-sp"></div></section>
   <section><h3>カメラ</h3><div class="chips" id="g-cam"></div><div class="desc" id="d-cam"></div><div class="lbl2">視点を回す速さ（左右）<b class="sv" id="sensVv"></b></div><div class="sl"><span>おそい</span><input type="range" id="sensV" min="0.15" max="4" step="0.05"><span>はやい</span></div>
@@ -412,15 +416,16 @@ const SKILLS={
   none:{name:'なし',desc:'スキルを使わない。'},
   shield:{name:'シールド',desc:'体のまわりに40ぶんのダメージを防ぐバリアをまとう。6秒攻撃を受けないと回復する。'},
   speed:{name:'俊足',desc:'歩く速さが18%、泳ぐ速さが12%アップ。'},
-  fps:{name:'一人称視点',desc:'キャラの目線で戦う。狙いやすく、遠くまで見渡せる（右側ドラッグで視点）。'},
-  dance:{name:'ダンス',desc:'いつもリズムに乗って左右にゆれている。体の位置がずれるので、敵の弾が当たりにくい。'},
+  fps:{name:'一人称視点',desc:'キャラの目線で戦う。操作は難しいが、敵からは体が小さく見え、当たり判定も小さくなる。'},
+  dance:{name:'ダンス',desc:'いつもリズムに乗って踊っている。受けた攻撃を40%の確率でよける。'},
   saver:{name:'インク節約',desc:'メイン・サブのインク消費が30%少なくなる。'},
   respawn:{name:'すばやい復活',desc:'やられてから復活するまでの時間が3.5秒→2.2秒になる。'},
   spboost:{name:'SPブースト',desc:'スペシャルゲージが30%たまりやすくなる。'},
   highjump:{name:'ハイジャンプ',desc:'ジャンプがとても高くなり、壁もとびこえられる。'},
   stealth:{name:'忍び足',desc:'泳いで動いても相手から波紋が見えない。CPにも見つかりにくい。'}};
-const CAM=()=>(player&&player.skill==='fps')?'tps':cfg.cam;
-const FPS=()=>player&&player.skill==='fps';
+const sk=(f,k)=>!!f&&f.skill===k&&!!f.skOn;
+const CAM=()=>(player&&sk(player,'fps'))?'tps':cfg.cam;
+const FPS=()=>player&&sk(player,'fps');
 const SPT={burst:5,storm:6,laser:7,decoy:14,dive:15,hover:16};
 const SPEV={5:'burst',6:'storm',7:'laser',14:'decoy',15:'dive',16:'hover',17:'dive'},SUBEV={4:1,10:1,11:1,12:1,13:1};
 const WALL_H=50,GRAV=900;
@@ -525,7 +530,7 @@ function snd(f,d,type='square',v=.04,slide=0){
 }
 
 // ===== Entities =====
-let baseHintT=0;
+let baseHintT=0,pops=[];
 let fighters=[],bullets=[],bombs=[],parts=[],rings=[],msgs=[],lobs=[],storms=[],curls=[],sprinklers=[],decoys=[],pads=[];
 let player=null,state='menu',timer=120,countT=0,endT=0,noInkT=0,cam={x:0,y:0};
 let MATCH=null,amHost=true,online=false;
@@ -539,10 +544,10 @@ function mkF(r,idx){
 }
 function spawn(f){
   const b=bases[f.team];f.x=f.tx=b.x+(f.team?-1:1)*20;f.y=f.ty=b.y+(f.slot-1.5)*55;
-  f.hp=100;f.ink=100;f.dead=0;f.swim=false;f.charge=0;f.spawnT=1.5;f.dmgBy={};f.ast=[];f.shield=f.skill==='shield'?40:0;f.shT=0;f.h=f.th=f.vh=f.lvx=f.lvy=0;f.hoverT=0;f.dive=false;f.aim=f.team?Math.PI:0;f.ai.t=0;
+  f.hp=100;f.ink=100;f.dead=0;f.swim=false;f.charge=0;f.spawnT=1.5;f.dmgBy={};f.ast=[];f.shield=sk(f,'shield')?40:0;f.shT=0;f.h=f.th=f.vh=f.lvx=f.lvy=0;f.hoverT=0;f.dive=false;f.aim=f.team?Math.PI:0;f.ai.t=0;
 }
-function hitPos(f){if(f.skill!=='dance')return[f.x,f.y];const o=Math.sin(performance.now()/130+f.idx*1.7)*12;return[f.x-Math.sin(f.aim)*o,f.y+Math.cos(f.aim)*o];}
-function addSp(f,n){if(f.laserT>0&&n>0&&n<300)return;f.sp=Math.min(100,f.sp+n*(f.skill==='spboost'?1.3:1)*0.055/((SPS[f.spk]||SPS.burst).cost));}
+function hitPos(f){if(!sk(f,'dance'))return[f.x,f.y];const o=Math.sin(performance.now()/130+f.idx*1.7)*12;return[f.x-Math.sin(f.aim)*o,f.y+Math.cos(f.aim)*o];}
+function addSp(f,n){if(f.laserT>0&&n>0&&n<300)return;f.sp=Math.min(100,f.sp+n*(sk(f,'spboost')?1.3:1)*0.055/((SPS[f.spk]||SPS.burst).cost));}
 function burst(x,y,col,n,sp){
   const hc=hex(col);n=Math.ceil(n*.6);
   for(let i=0;i<n;i++){if(parts.length>200)parts.shift();const a=Math.random()*6.283,s=sp*(.2+Math.random())*.6;
@@ -596,11 +601,12 @@ function act(f,type,x,y,a,p){if(type!==17&&ownBaseM(x,y,f.team,10))return;FIRE[t
 function damage(f,d,src){
   if(!isLocal(f)||f.dead>0)return false;
   if(inOwnBase(f.x,f.y,f.team)||f.spawnT>0||f.dive)return false;
-  if(f.skill==='shield'&&f.shield>0){const ab=Math.min(f.shield,d);f.shield-=ab;d-=ab;f.shT=6;if(d<=0){if(f.isP)snd(900,.05,'sine',.03,.7);return true;}}
+  if(sk(f,'dance')&&Math.random()<.4){if((f.dodgeT||0)<=0){f.dodgeT=.3;rings.push({x:f.x,y:f.y,r:6,max:26,c:'#ffffff',life:.25});pops.push({x:f.x,y:f.y,t:.8,txt:'よけた！'});}return false;}
+  if(sk(f,'shield')&&f.shield>0){const ab=Math.min(f.shield,d);f.shield-=ab;d-=ab;f.shT=6;if(d<=0){if(f.isP)snd(900,.05,'sine',.03,.7);return true;}}
   f.hp-=d;f.hitT=1.8;
   if(f.isP)snd(160,.08,'sawtooth',.04,.6);
   if(src&&src.team!==f.team){f.dmgBy=f.dmgBy||{};const e=f.dmgBy[src.idx]||(f.dmgBy[src.idx]={v:0,t:0});e.v+=d;e.t=performance.now();}
-  if(f.hp<=0){f.dead=f.skill==='respawn'?2.2:3.5;f.hp=0;f.dc++;f.kb=src.idx;f.laserT=0;f.burstN=0;
+  if(f.hp<=0){f.dead=sk(f,'respawn')?2.2:3.5;f.hp=0;f.dc++;f.kb=src.idx;f.laserT=0;f.burstN=0;
     const now=performance.now();f.ast=Object.keys(f.dmgBy||{}).map(Number).filter(i=>i!==src.idx&&f.dmgBy[i].v>=50&&now-f.dmgBy[i].t<8000&&fighters[i]&&fighters[i].team===src.team).slice(0,4);
     f.dmgBy={};onDeath(f,src,f.ast);}
   return true;
@@ -611,6 +617,7 @@ function onDeath(f,src,ast){
   for(const a of(ast||[])){const af=fighters[a|0];if(!af||af===src||af.team!==src.team)continue;af.assists=(af.assists||0)+1;
     if(isLocal(af))addSp(af,120);if(af.isP){say(f.isBot||!f.nm?'アシスト！':`${f.nm} をアシスト！`,TEAM[af.team].l);snd(880,.12,'triangle',.04,1.3);}}
   src.kills++;
+  if(src.isP&&src.kills===1&&src.skill!=='none')say(`スキル「${SKILLS[src.skill].name}」が使えるようになった！`,'#ffd23f');
   if(MATCH&&src.team!==f.team&&amHost){const md=MATCH.set.mode;
     if(md==='kill')MATCH.sc[src.team]++;
     else if(md==='stock')MATCH.sc[f.team]=Math.max(0,MATCH.sc[f.team]-1);
@@ -632,7 +639,7 @@ function explode(x,y,team,owner,r,dmgR,dmg,quiet){
     if(d<dmgR&&los(x,y,e.x,e.y))damage(e,d<dmgR*.55?dmg:dmg*.45,owner);}
   if(player){const pd=Math.hypot(player.x-x,player.y-y);if(pd<700)snd(quiet?160:90,quiet?.2:.45,'sawtooth',(quiet?.04:.08)*(1-pd/700)+.01,.4);}
 }
-function useInk(f,n){if(f.hoverT>0){f.ink=100;return true;}if(f.skill==='saver')n*=.7;if(f.ink>=n){f.ink-=n;return true;}if(f.isP&&noInkT<=0){noInkT=1;snd(200,.06,'triangle',.03);}return false;}
+function useInk(f,n){if(f.hoverT>0){f.ink=100;return true;}if(sk(f,'saver'))n*=.7;if(f.ink>=n){f.ink-=n;return true;}if(f.isP&&noInkT<=0){noInkT=1;snd(200,.06,'triangle',.03);}return false;}
 function rollTick(f){
   const w=WPN.roller,rx=f.x+Math.cos(f.aim)*22,ry=f.y+Math.sin(f.aim)*22;
   const n=paint(rx,ry,w.rollR,f.team);if(isLocal(f))addSp(f,n*0.6);
@@ -693,9 +700,10 @@ function updF(f,inp,dt){
   let mx=inp.mx||0,my=inp.my||0;const ml=Math.hypot(mx,my);if(ml>1){mx/=ml;my/=ml;}
   f.moving=ml>0.12;
   if(inp.pitch!=null)f.pitch=inp.pitch;
-  f.padCd-=dt;
-  if(f.skill==='shield'){f.shT-=dt;if(f.shT<=0)f.shield=Math.min(40,f.shield+15*dt);}
-  if(inp.jump&&f.h<=0&&f.laserT<=0){f.vh=f.skill==='highjump'?400:290;f.h=1;if(f.isP)snd(520,.12,'sine',.04,1.6);}
+  f.padCd-=dt;f.dodgeT=(f.dodgeT||0)-dt;
+  if(inp.skill&&f.skill!=='none'&&f.kills>=1){f.skOn=!f.skOn;if(f.skOn&&f.skill==='shield'){f.shield=40;f.shT=0;}if(f.isP){say(`${SKILLS[f.skill].name}：${f.skOn?'ON':'OFF'}`,TEAM[f.team].l);snd(f.skOn?990:440,.15,'triangle',.05,1.3);if(f.skill==='fps'){if(f.skOn){yaw=f.aim;pitch=0;}document.body.classList.toggle('tps',CAM()==='tps');}}}
+  if(sk(f,'shield')){f.shT-=dt;if(f.shT<=0)f.shield=Math.min(40,f.shield+15*dt);}
+  if(inp.jump&&f.h<=0&&f.laserT<=0){f.vh=sk(f,'highjump')?400:290;f.h=1;if(f.isP)snd(520,.12,'sine',.04,1.6);}
   for(const pd of pads){if(pd.team===f.team&&f.h<=0&&f.padCd<=0&&Math.hypot(pd.x-f.x,pd.y-f.y)<20){
     const a=f.moving?Math.atan2(my,mx):f.aim;f.vh=560;f.h=1;f.lvx=Math.cos(a)*300;f.lvy=Math.sin(a)*300;f.padCd=1.2;if(near(f))snd(700,.3,'sine',.05,2);burst(pd.x,pd.y,TEAM[f.team].c,8,150);}}
   const air=f.h>0||f.hoverT>0;
@@ -706,7 +714,7 @@ function updF(f,inp,dt){
   const fire=!!inp.fire&&!inBase,busy=fire||f.charge>0;
   f.swim=!busy&&own&&!air;
   if(f.laserT>0)f.swim=false;
-  let spd=f.hoverT>0?175:air?150:(f.swim?280:(enemy?70:150));if(f.skill==='speed')spd*=f.swim?1.12:1.18;if(busy&&f.hoverT<=0)spd*=w.fireSlow;if(f.laserT>0)spd*=.45;if(f.dive)spd=0;
+  let spd=f.hoverT>0?175:air?150:(f.swim?280:(enemy?70:150));if(sk(f,'speed'))spd*=f.swim?1.12:1.18;if(busy&&f.hoverT<=0)spd*=w.fireSlow;if(f.laserT>0)spd*=.45;if(f.dive)spd=0;
   if(air){
     if(f.hoverT>0){f.hoverT-=dt;f.ink=100;f.h+=(75-f.h)*Math.min(1,dt*4);f.vh=0;const dr=Math.exp(-8*dt);f.lvx*=dr;f.lvy*=dr;}
     else{f.vh-=GRAV*dt;f.h+=f.vh*dt;}
@@ -800,7 +808,7 @@ function peerJoin(code,host){
 const N=v=>Number.isFinite(+v)?+v:0;
 const cleanName=s=>String(s==null?'':s).replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁠-⁯﻿]/g,'').trim().slice(0,10);
 function outEv(f,type,x,y,a,p){const ev=[++outSeq,f.idx,type,Math.round(x),Math.round(y),Math.round(a*1000),Math.round(p),Math.round((f.pitch||0)*1000)];ev.t=performance.now();outbox.push(ev);if(outbox.length>24)outbox.shift();}
-function stateArr(f){return[f.idx,Math.round(f.x),Math.round(f.y),Math.round(f.aim*100),(f.swim?1:0)|(f.moving?2:0)|(f.rolling?4:0)|(f.dead>0?8:0),Math.round(f.hp),Math.round(f.charge*100),f.dc,f.kb,Math.round(f.h||0),f.dive?1:0,f.ast||[],Math.round(f.shield||0)];}
+function stateArr(f){return[f.idx,Math.round(f.x),Math.round(f.y),Math.round(f.aim*100),(f.swim?1:0)|(f.moving?2:0)|(f.rolling?4:0)|(f.dead>0?8:0)|(f.skOn?64:0),Math.round(f.hp),Math.round(f.charge*100),f.dc,f.kb,Math.round(f.h||0),f.dive?1:0,f.ast||[],Math.round(f.shield||0)];}
 function hostSet(){return{mode:cfg.mode,stage:cfg.stage,time:cfg.time,rounds:cfg.rounds,cpA:cfg.cpA,cpB:cfg.cpB,diff:cfg.diff,col:cfg.col};}
 function cleanSet(s){s=s||{};return{mode:MODES[s.mode]?s.mode:'turf',stage:STAGES[s.stage]?s.stage:'plaza',time:TIMES[s.time]?+s.time:120,rounds:ROUNDS[s.rounds]?+s.rounds:1,
   cpA:Math.max(0,Math.min(4,N(s.cpA)|0)),cpB:Math.max(0,Math.min(4,N(s.cpB)|0)),diff:DIFF[s.diff]?s.diff:'normal',col:PALETTES[s.col]?+s.col:0};}
@@ -822,7 +830,7 @@ function applyState(s){
   const f=fighters[N(s[0])|0];if(!f||isLocal(f))return;
   f.th=Math.max(0,Math.min(300,N(s[9])));f.shield=Math.max(0,Math.min(40,N(s[12])));f.dive=!!s[10];
   f.tx=Math.max(0,Math.min(W,N(s[1])));f.ty=Math.max(0,Math.min(H,N(s[2])));f.aim=N(s[3])/100;
-  const fl=N(s[4])|0;f.swim=!!(fl&1);f.moving=!!(fl&2);f.rolling=!!(fl&4)&&f.wpn==='roller';const dead=!!(fl&8);
+  const fl=N(s[4])|0;f.skOn=!!(fl&64);f.swim=!!(fl&1);f.moving=!!(fl&2);f.rolling=!!(fl&4)&&f.wpn==='roller';const dead=!!(fl&8);
   f.hp=Math.max(0,Math.min(100,N(s[5])));f.charge=(f.wpn==='charger'||f.wpn==='spinner')?Math.max(0,Math.min(1,N(s[6])/100)):0;
   const dc=N(s[7])|0;
   if(dc>f.dc){f.dc=dc;f.kb=N(s[8])|0;f.dead=1;f.rolling=false;f.laserT=0;f.ast=Array.isArray(s[11])?s[11].slice(0,4).map(v=>N(v)|0):[];onDeath(f,fighters[f.kb]||f,f.ast);}
@@ -941,7 +949,7 @@ function startMatchLocal(ros,set,mid,round,wins){
   yaw=player.team?Math.PI:0;pitch=0;lastAim=yaw;camT.x=player.x;camT.z=player.y;T.L=T.R=T.F=null;mouse.down=false;
   document.body.classList.toggle('tps',CAM()==='tps');paintDirty=true;
   timer=set.time;countT=3.2;state='count';
-  bombBtn.style.display=spBtn.style.display=jumpBtn.style.display='flex';bombBtn.textContent=SUBS[player.sub].s;bombBtn._o=null;
+  bombBtn.style.display=spBtn.style.display=jumpBtn.style.display='flex';skillBtn.style.display=player.skill==='none'?'none':'flex';skillBtn._k=null;bombBtn.textContent=SUBS[player.sub].s;bombBtn._o=null;
   document.getElementById('menu').style.display='none';document.getElementById('res').style.display='none';
 }
 function finishRound(){state='end';endT=2;snd(300,.8,'sawtooth',.07,.5);bullets.length=0;bombs.length=0;lobs.length=0;storms.length=0;curls.length=0;sprinklers.length=0;decoys.length=0;pads.length=0;fighters.forEach(f=>{f.laserT=0;f.burstN=0;});T.L=T.R=T.F=null;}
@@ -952,7 +960,7 @@ function endRoundHost(){
   MATCH.res=p;if(p[0]>p[1])MATCH.wins[0]++;else if(p[1]>p[0])MATCH.wins[1]++;
   myPh='end';
 }
-function hideGame(){bombBtn.style.display=spBtn.style.display=jumpBtn.style.display='none';T.L=T.R=T.F=null;mouse.down=false;try{document.exitPointerLock&&document.exitPointerLock();}catch(e){}}
+function hideGame(){bombBtn.style.display=spBtn.style.display=jumpBtn.style.display=skillBtn.style.display='none';T.L=T.R=T.F=null;mouse.down=false;try{document.exitPointerLock&&document.exitPointerLock();}catch(e){}}
 function seriesDone(){const need=Math.ceil(MATCH.set.rounds/2);return Math.max(MATCH.wins[0],MATCH.wins[1])>=need||MATCH.round>=MATCH.set.rounds*2;}
 function showResult(){
   hideGame();
@@ -1021,7 +1029,7 @@ function update(dt){
       else addSp(b.owner,paint(b.x-b.vx*.02,b.y-b.vy*.02,16,b.team));}
     else for(const f of fighters){
       if(f.team===b.team||f.dead>0)continue;
-      const hp2=hitPos(f);if(Math.abs(b.z-((f.h||0)+16))<24&&(hp2[0]-b.x)**2+(hp2[1]-b.y)**2<(f.r+(f.skill==='dance'?3:5))**2){let dm=b.dmg;if(b.sg&&!b.fall){const dd=Math.hypot(f.x-b.ox,f.y-b.oy);dm=dd<100?130:dd<150?60:b.dmg;}damage(f,dm,b.owner);dead=true;burst(b.x,b.y,TEAM[b.team].c,5,150);
+      const sm=sk(f,'fps'),hr=sm?10:f.r+5;if(Math.abs(b.z-((f.h||0)+(sm?10:16)))<(sm?16:24)&&(f.x-b.x)**2+(f.y-b.y)**2<hr*hr){let dm=b.dmg;if(b.sg&&!b.fall){const dd=Math.hypot(f.x-b.ox,f.y-b.oy);dm=dd<100?130:dd<150?60:b.dmg;}damage(f,dm,b.owner);dead=true;burst(b.x,b.y,TEAM[b.team].c,5,150);
         if(b.blast)explode(b.x,b.y,b.team,b.owner,48,55,58,true);break;}
     }
     if(!dead)for(const d of decoys){if(d.team===b.team||b.z>45)continue;if((d.x-b.x)**2+(d.y-b.y)**2<18*18){d.hp-=b.dmg;dead=true;burst(b.x,b.y,TEAM[b.team].c,4,120);break;}}
@@ -1164,6 +1172,7 @@ function pickTarget(f){
 function botInput(f,dt){
   const inp={mx:0,my:0,aim:null,fire:false};
   if(f.dead>0)return inp;
+  if(!f.skOn&&f.kills>=1&&f.skill!=='none'&&f.skill!=='fps')inp.skill=true;
   const A=f.ai,w=WPN[f.wpn],D=f.D,iq=D.iq,md=modeOf();A.t-=dt;A.st-=dt;A.strT-=dt;
   if(A.strT<=0){A.str=Math.random()<.5?1:-1;A.strT=(.6+Math.random()*1.2)*(1.3-iq*.6);}
   if(A.st<=0){if(Math.hypot(f.x-A.lx,f.y-A.ly)<25){A.t=0;A.side*=-1;}A.lx=f.x;A.ly=f.y;A.st=1;}
@@ -1176,7 +1185,7 @@ function botInput(f,dt){
     if(e.team===f.team||e.dead>0)continue;
     const d=Math.hypot(e.x-f.x,e.y-f.y);
     if(inOwnBase(e.x,e.y,e.team)||e.dive)continue;
-    const seen=!e.swim||d<(e.skill==='stealth'?60:100+iq*40)||(e.moving&&e.skill!=='stealth'&&d<160+iq*80);
+    const seen=!e.swim||d<(sk(e,'stealth')?60:100+iq*40)||(e.moving&&!sk(e,'stealth')&&d<160+iq*80);
     let sc=d-(iq>.5?(100-e.hp)*1.5:0);
     if(iq>.5)for(const al of fighters)if(al!==f&&al.team===f.team&&al.isBot&&al.ai.focus===e)sc-=90*iq;
     if(seen&&d<range&&sc<bd&&los(f.x,f.y,e.x,e.y)){best=e;bd=sc;}
@@ -1205,7 +1214,7 @@ function botInput(f,dt){
     const bspd=(w.spd||600),tt=bd/bspd*iq;
     const px=best.x+(best.evx||0)*tt,py=best.y+(best.evy||0)*tt;
     const a=Math.atan2(py-f.y,px-f.x);
-    inp.aim=a+(Math.random()-.5)*(D.jit+(best.skill==='dance'?.18:0));inp.pitch=Math.atan2((best.h||0)+16-(14+(f.h||0)),Math.max(20,bd));inp.bombDist=bd;
+    inp.aim=a+(Math.random()-.5)*(D.jit+(sk(best,'dance')?.18:0));inp.pitch=Math.atan2((best.h||0)+16-(14+(f.h||0)),Math.max(20,bd));inp.bombDist=bd;
     if(f.h<=0&&(Math.random()<dt*.25*D.bomb||(iq>.6&&f.hitT>1.6&&Math.random()<dt*3)))inp.jump=true;
     const outnumbered=iq>.55&&md!=='zone'&&enemiesNear(f,f.x,f.y,280)>=enemiesNear(f,f.x,f.y,0)+2+alliesNear(f,250);
     let mx=0,my=0;
@@ -1262,7 +1271,7 @@ const keys={};let mouse={x:0,y:0,down:false,active:false,lockDx:0,dragDx:0,lx:0}
 const T={L:null,R:null,F:null};let lastAim=0,tBomb=false,tSp=false,tJump=false,usingTouch=false,yaw=0,pitch=0;
 let FB={x:0,y:0,r:46};
 function layoutFB(){FB={x:cw-78,y:ch-86,r:46};}
-addEventListener('keydown',e=>{keys[e.code]=true;if(state!=='play')return;if(e.code==='Space'){tBomb=true;e.preventDefault();}if(e.code==='KeyQ')tSp=true;if(e.code==='ShiftLeft'||e.code==='ShiftRight'||e.code==='KeyF')tJump=true;if(e.code==='KeyE')tBomb=true;});
+addEventListener('keydown',e=>{keys[e.code]=true;if(state!=='play')return;if(e.code==='Space'){tBomb=true;e.preventDefault();}if(e.code==='KeyQ')tSp=true;if(e.code==='KeyR')tSkill=true;if(e.code==='ShiftLeft'||e.code==='ShiftRight'||e.code==='KeyF')tJump=true;if(e.code==='KeyE')tBomb=true;});
 addEventListener('keyup',e=>{keys[e.code]=false;});
 const locked=()=>document.pointerLockElement===cv;
 cv.addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;mouse.active=true;
@@ -1302,6 +1311,9 @@ spBtn.addEventListener('mousedown',e=>{e.preventDefault();tSp=true;});
 const jumpBtn=document.getElementById('jumpBtn');
 jumpBtn.addEventListener('touchstart',e=>{e.preventDefault();tJump=true;},{passive:false});
 jumpBtn.addEventListener('mousedown',e=>{e.preventDefault();tJump=true;});
+const skillBtn=document.getElementById('skillBtn');let tSkill=false;
+skillBtn.addEventListener('touchstart',e=>{e.preventDefault();tSkill=true;},{passive:false});
+skillBtn.addEventListener('mousedown',e=>{e.preventDefault();tSkill=true;});
 
 const angDiffS=(a,b)=>((a-b)%6.2832+9.4248)%6.2832-3.1416;
 const angDiff=(a,b)=>Math.abs(((a-b)%6.2832+9.4248)%6.2832-3.1416);
@@ -1381,7 +1393,8 @@ function playerInput(dt){
   if(tBomb){inp.bomb=true;inp.bombDist=bombDist;inp.aim=lastAim;}
   if(tSp){inp.special=true;inp.bombDist=bombDist+40;}
   if(tJump)inp.jump=true;
-  tBomb=tSp=tJump=false;
+  if(tSkill)inp.skill=true;
+  tBomb=tSp=tJump=tSkill=false;
   return inp;
 }
 
@@ -1465,7 +1478,7 @@ function drawChar(E,f){
   if(f.isP&&FPS())return;
   if(f.swim){
     let a=f.isP?.85:.6;
-    if(f.team!==player.team){const d=Math.sqrt(dist2(f,player));if(f.skill==='stealth'||!(f.moving&&d<170))return;a=.4*(1-d/170);}
+    if(f.team!==player.team){const d=Math.sqrt(dist2(f,player));if(sk(f,'stealth')||!(f.moving&&d<170))return;a=.4*(1-d/170);}
     const w=Math.sin(f.bob)*1.5;
     E.draw('sphere',rootM(f.x,2,f.y,f.aim,12+w,3,8-w*.4,_R),Tm.l,a,.2);
     return;
@@ -1480,9 +1493,10 @@ function drawChar(E,f){
   }
   const sq=1+Math.sin(f.bob)*.05;
   let dx0=f.x,dy0=f.y,ra=f.aim;
-  if(f.skill==='dance'){const hp2=hitPos(f);dx0=hp2[0];dy0=hp2[1];ra=f.aim+Math.sin(performance.now()/130+f.idx*1.7+1)*.45;}
-  rootM(dx0,H0+(f.skill==='dance'?Math.abs(Math.sin(performance.now()/130+f.idx))*4:0),dy0,ra,1/sq,sq,1/sq,_R);
-  if(f.skill==='shield'&&f.shield>0)E.draw('sphere',TS(dx0,H0+17,dy0,24,26,24),Tm.l,.12+.22*f.shield/40,1);
+  if(sk(f,'dance')){const hp2=hitPos(f);dx0=hp2[0];dy0=hp2[1];ra=f.aim+Math.sin(performance.now()/130+f.idx*1.7+1)*.45;}
+  const sc0=sk(f,'fps')?.6:1;
+  rootM(dx0,H0+(sk(f,'dance')?Math.abs(Math.sin(performance.now()/130+f.idx))*4:0),dy0,ra,sc0/sq,sc0*sq,sc0/sq,_R);
+  if(sk(f,'shield')&&f.shield>0)E.draw('sphere',TS(dx0,H0+17*sc0,dy0,24*sc0,26*sc0,24*sc0),Tm.l,.12+.22*f.shield/40,1);
   drawParts(E,f.parts,_R,Tm,f.hitT>1.62,f.charge);
   if(f.isP&&CAM()!=='tps'){E.draw('cone',(()=>{const m=M4.mul(M4.T(f.x,58+H0+Math.sin(performance.now()/200)*2,f.y),M4.mul(M4.Rz(Math.PI),M4.S(5,9,5)));return m;})(),CW,1,1);}
 }
@@ -1563,7 +1577,11 @@ function drawHUD(){
   {const narrow=cw<600,ly=narrow?top+80:top+12,maxW=narrow?cw-Math.min(150,cw*.3)-44:Math.max(60,cw/2-50-fighters.filter(f=>f.team===0).length*24-30);
     const parts=[MODES[MATCH.set.mode].name,MATCH.set.rounds>1?`R${MATCH.round} ${MATCH.wins[myT()]}-${MATCH.wins[1-myT()]}`:'',STG.name,WPN[player.wpn].name].filter(Boolean);
     let t=parts.join('｜');while(parts.length>1&&ctx.measureText(t).width>maxW){parts.pop();t=parts.join('｜');}
-    ctx.fillText(t,12,ly);ctx.font='800 13px system-ui,sans-serif';ctx.fillStyle='#fff';ctx.fillText(`${player.kills}キル  ${player.assists||0}アシスト`,12,ly+18);}ctx.textAlign='center';
+    ctx.fillText(t,12,ly);ctx.font='800 13px system-ui,sans-serif';ctx.fillStyle='#fff';ctx.fillText(`${player.kills}キル  ${player.assists||0}アシスト`,12,ly+18);
+    if(player.skill!=='none'){const st=player.kills<1?'1キルで解放':(player.skOn?'ON':'OFF（ボタンでON）');ctx.font='800 13px system-ui,sans-serif';ctx.lineWidth=4;ctx.strokeStyle='#1a1430';const tx=`スキル：${SKILLS[player.skill].name}（${st}）`;ctx.strokeText(tx,12,ly+36);ctx.fillStyle=player.skOn?'#ffd23f':player.kills<1?'#bbb':'#fff';ctx.fillText(tx,12,ly+36);}}
+  {const k=player.skill+'|'+(player.kills>=1)+'|'+!!player.skOn;if(skillBtn._k!==k){skillBtn._k=k;const nm=SKILLS[player.skill].name;
+    skillBtn.textContent=player.kills<1?nm+'\n🔒':(player.skOn?nm+'\nON':nm+'\nOFF');skillBtn.classList.toggle('off',player.kills<1);skillBtn.classList.toggle('on',!!player.skOn);skillBtn.classList.toggle('ready',player.kills>=1&&!player.skOn);}}
+  for(let i=pops.length-1;i>=0;i--){const q=pops[i];q.t-=1/60;if(q.t<=0){pops.splice(i,1);continue;}const pp=P2(q.x,55+(.8-q.t)*30,q.y);if(!pp)continue;ctx.globalAlpha=Math.min(1,q.t*2);ctx.font='900 16px system-ui,sans-serif';ctx.lineWidth=4;ctx.strokeStyle='#1a1430';ctx.strokeText(q.txt,pp[0],pp[1]);ctx.fillStyle='#fff';ctx.fillText(q.txt,pp[0],pp[1]);ctx.globalAlpha=1;}ctx.textAlign='center';
   if(player.dead>0&&state==='play'){ctx.font='900 22px system-ui,sans-serif';ctx.fillStyle='#fff';ctx.lineWidth=5;ctx.strokeStyle='#1a1430';ctx.strokeText(`復活まで ${player.dead.toFixed(1)}`,cw/2,ch/2+60);ctx.fillText(`復活まで ${player.dead.toFixed(1)}`,cw/2,ch/2+60);}
   baseHintT-=1/60;if(baseHintT>0&&player.dead<=0){ctx.font='900 17px system-ui,sans-serif';ctx.lineWidth=5;ctx.strokeStyle='#1a1430';const s='スポーン地点の中では撃てません';ctx.strokeText(s,cw/2,ch*.68);ctx.fillStyle='#fff';ctx.fillText(s,cw/2,ch*.68);}
   if(noInkT>0&&player.dead<=0){ctx.font='900 18px system-ui,sans-serif';ctx.lineWidth=5;ctx.strokeStyle='#1a1430';const s='インク不足！自分の色に潜って回復';ctx.strokeText(s,cw/2,ch*.62);ctx.fillStyle='#ff5a5a';ctx.fillText(s,cw/2,ch*.62);}
