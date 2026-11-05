@@ -62,6 +62,7 @@ input.tx{font-size:16px;padding:9px 12px;border-radius:12px;border:2px solid rgb
 .teams{display:flex;gap:8px}
 .tcol{flex:1;border:2px solid #fff;border-radius:12px;padding:8px;min-height:70px;background:rgba(0,0,0,.18)}
 .th{font-weight:900;margin-bottom:4px}
+.cpwrow{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:4px 0}.cpwrow .chip{padding:5px 9px;font-size:12px}.cpwl{font-weight:900;font-size:12px;width:36px;color:#ffd23f}.cpwrow.off{opacity:.35}
 .pl{font-size:13px;padding:3px 0;word-break:break-all}.pl span{opacity:.7;font-size:11px}.pl.cp{opacity:.6}
 #onMsg{color:#ffb0b0;font-size:13px;margin-top:6px;min-height:0}
 #series{font-size:18px;font-weight:900;margin:4px 0}
@@ -102,9 +103,11 @@ input.tx{font-size:16px;padding:9px 12px;border-radius:12px;border:2px solid rgb
     <div class="lbl2">試合形式</div><div class="chips" id="g-rounds"></div>
     <div class="lbl2" id="l-cpA">味方のCP</div><div class="chips" id="g-cpA"></div>
     <div class="lbl2" id="l-cpB">相手のCP</div><div class="chips" id="g-cpB"></div>
+    <div class="lbl2" id="l-cpw">味方CPのブキ</div><div id="g-cpw"></div><div class="desc">CPの人数より多い枠は使われません。相手のCPはおまかせです。</div>
     <div class="lbl2">CPのつよさ</div><div class="chips" id="g-diff"></div><div class="desc" id="d-diff"></div>
     <div class="lbl2">チームカラー</div><div class="chips" id="g-col"></div>
   </section>
+  <section><h3>スペシャル（SP）</h3><div class="chips" id="g-sp"></div><div class="desc" id="d-sp"></div></section>
   <section><h3>カメラ</h3><div class="chips" id="g-cam"></div><div class="desc" id="d-cam"></div><div class="lbl2">視点を回す速さ（うしろ視点）</div><div class="chips" id="g-sens"></div></section>
   <section><h3>ブキ</h3><div class="chips" id="g-wpn"></div><div class="desc" id="d-wpn"></div></section>
   <section><h3>見た目</h3>
@@ -123,7 +126,7 @@ input.tx{font-size:16px;padding:9px 12px;border-radius:12px;border:2px solid rgb
       <b>うしろ視点</b><span>右側ドラッグで向きを変える／右下の「うつ」を押して撃つ（押したままドラッグで狙える）</span>
       <b>見下ろし視点</b><span>右側ドラッグで狙って撃つ（チャージャーは離すと発射）</span>
       <b>自分の色の上</b><span>撃たなければ自動で潜って高速移動＆インク回復</span>
-      <b>ボム／SP</b><span>ボムはインク50%。SPは塗ってゲージ満タンで周囲を大爆発</span>
+      <b>ボム／SP</b><span>ボムはインク50%。SPは塗ってゲージ満タンで発動（バースト／ストーム／レーザーから選べる）</span>
       <b>スマホで対戦</b><span>1人が「部屋を作る」→ あいことばを友だちに伝える → 友だちが入力して参加 → チームを選んでホストが開始。空いた枠はCPでうめられます</span>
       <b>PC</b><span>WASD移動 / うしろ視点：クリックでマウス視点、←→でも回転 / クリック射撃 / Space ボム / Q SP</span>
     </div>
@@ -331,6 +334,8 @@ function buildParts(lk,wpn){
   const WZ=13;
   if(wpn==='roller')P.push(part('cyl',CDK,[14,10,WZ-4],[1.6,24,1.6],[0,0,Math.PI/2]),part('cyl','T',[27,7,0],[7,34,7],[Math.PI/2,0,0]));
   else if(wpn==='charger')P.push(part('box',CDK,[5,13,WZ],[12,8,8]),part('cyl',CDK,[22,14,WZ],[2.4,30,2.4],[0,0,Math.PI/2]),part('box','G',[5,13,WZ+4.2],[10,5,1]),part('box','T',[38,14,WZ],[4,5,5]));
+  else if(wpn==='spinner')P.push(part('cyl',CDK,[8,13,WZ],[6,12,6],[0,0,Math.PI/2]),part('cyl',CDK,[25,15.2,WZ],[1.6,22,1.6],[0,0,Math.PI/2]),part('cyl',CDK,[25,11.4,WZ-2.2],[1.6,22,1.6],[0,0,Math.PI/2]),part('cyl',CDK,[25,11.4,WZ+2.2],[1.6,22,1.6],[0,0,Math.PI/2]),part('box','G',[8,13,WZ+6.3],[10,5,1]),part('box','T',[36,13,WZ],[3,8,8]));
+  else if(wpn==='slosher')P.push(part('cyl',CDK,[14,10,WZ],[7,13,7]),part('cyl','T',[14,16.8,WZ],[6.2,1,6.2]),part('torus',CDK,[14,19,WZ],6.5,[Math.PI/2,0,0]));
   else if(wpn==='blaster')P.push(part('box',CDK,[10,13,WZ],[16,11,11]),part('sphere','T',[21,13,WZ],6.5));
   else P.push(part('box',CDK,[12,13,WZ],[20,7,7]),part('box','T',[24,13,WZ],[6,6,6]));
   return P;
@@ -356,6 +361,8 @@ const WPN={
   shooter:{name:'シューター',desc:'連射して撃つ基本のブキ。塗りも戦いもバランス型。',range:360,pref:190,cool:.085,cost:1.4,spd:640,life:.36,dmg:24,spread:.15,trailR:10,splatR:20,fireSlow:.72},
   roller:{name:'ローラー',desc:'撃ちながら動くと太い道を塗り、当たった敵を一撃で倒す。止まって撃つとインクを飛ばす。',range:300,pref:20,cool:.6,cost:8,rollCost:9,rollR:26,rollDmg:140,fireSlow:.9},
   charger:{name:'チャージャー',desc:'押してためて、離して発射。フルチャージで遠くの敵を一撃で倒す。',range:650,pref:430,chargeT:.9,cost:18,spd:1500,dmg:130,trailR:9,fireSlow:.45},
+  spinner:{name:'スピナー',desc:'押して回転をため、離すとたくさんの弾を連射。射程が長く、塗りも強い。',range:440,pref:280,chargeT:.75,cost:16,spd:760,life:.42,dmg:22,spread:.1,trailR:10,splatR:18,fireSlow:.5},
+  slosher:{name:'バケツ',desc:'インクの塊を山なりに投げる。壁の向こうにも届き、2発当てれば敵を倒せる。',range:320,pref:190,cool:.6,cost:7,dmg:60,fireSlow:.75},
   blaster:{name:'ブラスター',desc:'弾が爆発する。直撃で一撃、まわりにも爆風ダメージ。連射はおそい。',range:380,pref:230,cool:.75,cost:9,spd:520,life:.42,dmg:125,spread:.03,trailR:9,splatR:0,fireSlow:.8},
 };
 const STAGES={
@@ -371,6 +378,9 @@ const DIFF={
   normal:{name:'ふつう',desc:'ほどよい強さ。',jit:.32,coolMul:1,rangeMul:1,bomb:1},
   hard:{name:'つよい',desc:'正確に狙い、ボムやSPも積極的に使う。',jit:.12,coolMul:.9,rangeMul:1.2,bomb:1.8},
 };
+const SPS={burst:{name:'インクバースト',s:'バースト',desc:'自分のまわりを大爆発させて、近くの敵を倒す。'},storm:{name:'インクストーム',s:'ストーム',desc:'狙った先に雨雲を出す。6秒間まわりを塗り続け、中にいる敵にダメージ。'},laser:{name:'メガレーザー',s:'レーザー',desc:'壁で止まる極太レーザーを2秒間撃ち続ける。向きを変えてなぎ払える。'}};
+const SPT={burst:5,storm:6,laser:7};
+const WPNEV={0:'shooter',1:'blaster',2:'charger',3:'roller',8:'spinner',9:'slosher'};
 const SHAPES={drop:'しずく',round:'まる',spiky:'トゲトゲ'};
 const HATS={none:'なし',cap:'キャップ',knit:'ニット',crown:'おうかん',band:'ハチマキ',horns:'ツノ',ribbon:'リボン'};
 const EYES={normal:'ふつう',kiri:'キリッ',kira:'キラキラ',nemui:'ねむい'};
@@ -379,8 +389,9 @@ const CAMS={tps:{name:'うしろ（TPS）',desc:'キャラの後ろから見る3
 const TIMES={60:'1分',120:'2分',180:'3分'};
 const ROUNDS={1:'1本勝負',3:'3本勝負（2本先取）',5:'5本勝負（3本先取）'};
 let paintDirty=true;
-let cfg={wpn:'shooter',stage:'plaza',diff:'normal',col:0,shape:'drop',hat:'none',eyes:'normal',cam:'tps',sens:3,time:120,rounds:1,cpA:2,cpB:3,nick:''};
+let cfg={wpn:'shooter',stage:'plaza',diff:'normal',col:0,shape:'drop',hat:'none',eyes:'normal',cam:'tps',sens:3,sp:'burst',cpW:['random','random','random'],time:120,rounds:1,cpA:2,cpB:3,nick:''};
 try{const s=JSON.parse(localStorage.getItem('inkturf3d')||'null');if(s)for(const k in cfg)if(s[k]!=null&&typeof s[k]===typeof cfg[k])cfg[k]=s[k];}catch(e){}
+if(!Array.isArray(cfg.cpW))cfg.cpW=[];cfg.cpW=[0,1,2].map(i=>WPN[cfg.cpW[i]]?cfg.cpW[i]:'random');if(!SPS[cfg.sp])cfg.sp='burst';if(!WPN[cfg.wpn])cfg.wpn='shooter';
 function saveCfg(){try{localStorage.setItem('inkturf3d',JSON.stringify(cfg));}catch(e){}}
 
 // ===== World =====
@@ -446,15 +457,15 @@ function snd(f,d,type='square',v=.04,slide=0){
 }
 
 // ===== Entities =====
-let fighters=[],bullets=[],bombs=[],parts=[],rings=[],msgs=[];
+let fighters=[],bullets=[],bombs=[],parts=[],rings=[],msgs=[],lobs=[],storms=[];
 let player=null,state='menu',timer=120,countT=0,endT=0,noInkT=0,cam={x:0,y:0};
 let MATCH=null,amHost=true,online=false;
 const isLocal=f=>f.isP||(f.isBot&&amHost);
 const pick=o=>{const k=Object.keys(o);return k[(Math.random()*k.length)|0];};
 function mkF(r,idx){
-  const[id,team,slot,isBot,wpn,shape,hat,eyes,nm]=r;
+  const[id,team,slot,isBot,wpn,shape,hat,eyes,nm,spk]=r;
   const D=isBot&&(online||team!==0)?DIFF[MATCH.set.diff]:DIFF.normal;
-  return{idx,id,team,slot,isBot:!!isBot,isP:false,nm,look:{shape,hat,eyes},wpn,D,x:0,y:0,tx:0,ty:0,r:15,hp:100,ink:100,sp:0,dead:0,aim:team?Math.PI:0,cool:0,charge:0,rolling:false,rollImm:0,swim:false,hitT:0,bombCd:0,moving:false,bob:Math.random()*6,kills:0,dc:0,kb:-1,
+  return{idx,id,team,slot,isBot:!!isBot,isP:false,nm,spk:SPS[spk]?spk:'burst',laserT:0,beamLen:0,burstN:0,burstT:0,look:{shape,hat,eyes},wpn,D,x:0,y:0,tx:0,ty:0,r:15,hp:100,ink:100,sp:0,dead:0,aim:team?Math.PI:0,cool:0,charge:0,rolling:false,rollImm:0,swim:false,hitT:0,bombCd:0,moving:false,bob:Math.random()*6,kills:0,dc:0,kb:-1,
     ai:{t:0,tx:0,ty:0,lx:0,ly:0,st:1,refill:false,str:1,strT:0,side:Math.random()<.5?1:-1}};
 }
 function spawn(f){
@@ -486,6 +497,11 @@ const FIRE={
   3:(f,x,y,a)=>{for(let i=-2;i<=2;i++)fireBullet(f,x,y,a+i*.22,{spd:520,life:.3,dmg:36,trailR:10,splatR:20});if(near(f))snd(300,.12,'triangle',f.isP?.05:.02,.5);},
   4:(f,x,y,a,p)=>{const d=Math.max(110,Math.min(340,p||260));
     bombs.push({sx:x,sy:y,tx:x+Math.cos(a)*d,ty:y+Math.sin(a)*d,t:0,dur:.65,team:f.team,owner:f,fuse:.35});if(near(f))snd(300,.25,'sine',.05,2);},
+  6:(f,x,y,a)=>{const tx=Math.max(60,Math.min(W-60,x+Math.cos(a)*280)),ty=Math.max(60,Math.min(H-60,y+Math.sin(a)*280));
+    storms.push({x:tx,y:ty,t:6,tick:0,team:f.team,owner:f,seed:(Math.abs(Math.round(tx*7+ty*13))%2147483646)+1});if(f.isP)say('インクストーム！',TEAM[f.team].c);if(near(f))snd(180,.6,'sine',.05,.5);},
+  7:(f)=>{f.laserT=1.8;if(f.isP)say('メガレーザー！',TEAM[f.team].c);if(near(f))snd(90,1.2,'sawtooth',.05,3);},
+  8:(f,x,y,a)=>{const w=WPN.spinner;fireBullet(f,x,y,a,{spd:w.spd,life:w.life,dmg:w.dmg,trailR:w.trailR,splatR:w.splatR});if(f.isP)snd(700+Math.random()*150,.04,'square',.014,.5);},
+  9:(f,x,y,a)=>{for(let i=0;i<3;i++){const d=95+i*70;lobs.push({sx:x,sy:y,tx:Math.max(0,Math.min(W,x+Math.cos(a)*d)),ty:Math.max(0,Math.min(H,y+Math.sin(a)*d)),t:0,dur:.26+i*.06,team:f.team,owner:f});}if(near(f))snd(260,.15,'triangle',f.isP?.05:.02,.6);},
   5:(f,x,y)=>{explode(x,y,f.team,f,155,135,130);rings.push({x,y,r:20,max:200,c:'#fff',life:.5});if(f.isP)say('インクバースト！',TEAM[f.team].c);},
 };
 function act(f,type,x,y,a,p){FIRE[type](f,x,y,a,p||0);if(online&&isLocal(f))outEv(f,type,x,y,a,p||0);}
@@ -494,7 +510,7 @@ function damage(f,d,src){
   if(!isLocal(f)||f.dead>0)return false;
   f.hp-=d;f.hitT=1.8;
   if(f.isP)snd(160,.08,'sawtooth',.04,.6);
-  if(f.hp<=0){f.dead=3.5;f.hp=0;f.dc++;f.kb=src.idx;onDeath(f,src);}
+  if(f.hp<=0){f.dead=3.5;f.hp=0;f.dc++;f.kb=src.idx;f.laserT=0;f.burstN=0;onDeath(f,src);}
   return true;
 }
 function onDeath(f,src){
@@ -522,7 +538,29 @@ function rollTick(f){
   for(const e of fighters){if(e.team===f.team||e.dead>0||e.rollImm>0)continue;
     if(Math.hypot(e.x-rx,e.y-ry)<w.rollR+e.r*.6){if(damage(e,w.rollDmg,f))e.rollImm=.4;}}
 }
+function laserTick(f,dt){
+  const c=Math.cos(f.aim),s=Math.sin(f.aim);let L=20;
+  while(L<900){const x=f.x+c*L,y=f.y+s*L;if(cellAt(x,y)===255)break;L+=14;}
+  f.beamLen=L;
+  for(let d=30;d<L;d+=30){const n=paint(f.x+c*d,f.y+s*d,15,f.team);if(isLocal(f))addSp(f,n*.2);}
+  for(const e of fighters){if(e.team===f.team||e.dead>0)continue;
+    const ex=e.x-f.x,ey=e.y-f.y,proj=ex*c+ey*s;if(proj<0||proj>L)continue;
+    if(Math.abs(-ex*s+ey*c)<24)damage(e,260*dt,f);}
+}
 function weaponFire(f,fire,dt,mx,my){
+  if(f.wpn==='spinner'){
+    const w=WPN.spinner;f.rolling=false;
+    if(f.burstN>0){f.burstT-=dt;while(f.burstT<=0&&f.burstN>0){f.burstT+=.045;f.burstN--;act(f,8,f.x,f.y,f.aim+(Math.random()-.5)*w.spread);}f.charge=0;return;}
+    if(fire){f.charge=Math.min(1,f.charge+dt/w.chargeT);}
+    else if(f.charge>0.08){const k=f.charge;f.charge=0;if(useInk(f,w.cost*Math.max(.3,k))){f.burstN=Math.round(5+17*k);f.burstT=0;}}
+    else f.charge=0;
+    return;
+  }
+  if(f.wpn==='slosher'){
+    f.rolling=false;
+    if(fire&&f.cool<=0){f.cool=WPN.slosher.cool*f.D.coolMul;if(useInk(f,WPN.slosher.cost))act(f,9,f.x,f.y,f.aim);else f.cool=.3;}
+    return;
+  }
   const w=WPN[f.wpn];f.rolling=false;
   if(f.wpn==='charger'){
     if(fire){f.charge=Math.min(1,f.charge+dt/w.chargeT);}
@@ -555,16 +593,17 @@ function updF(f,inp,dt){
   if(inp.aim!=null)f.aim=inp.aim;
   const fire=!!inp.fire,busy=fire||f.charge>0;
   f.swim=!busy&&own;
-  let spd=f.swim?280:(enemy?70:150);if(busy)spd*=w.fireSlow;
+  if(f.laserT>0)f.swim=false;
+  let spd=f.swim?280:(enemy?70:150);if(busy)spd*=w.fireSlow;if(f.laserT>0)spd*=.45;
   moveCircle(f,mx*spd*dt,my*spd*dt);
   if(f.swim)f.ink=Math.min(100,f.ink+(f.moving?38:75)*dt);else if(!busy)f.ink=Math.min(100,f.ink+5*dt);
   f.hitT-=dt;
   if(enemy){if(f.hp>35)f.hp-=14*dt;}else if(f.hitT<=0)f.hp=Math.min(100,f.hp+(f.swim?70:25)*dt);
   f.cool-=dt;
-  weaponFire(f,fire,dt,mx,my);
+  if(f.laserT>0){f.laserT-=dt;f.charge=0;f.burstN=0;laserTick(f,dt);}else weaponFire(f,fire,dt,mx,my);
   f.bombCd-=dt;
   if(inp.bomb&&f.bombCd<=0){if(useInk(f,50)){f.bombCd=.8;act(f,4,f.x,f.y,f.aim,Math.round(inp.bombDist||260));}}
-  if(inp.special&&f.sp>=100){f.sp=0;act(f,5,f.x,f.y,0);}
+  if(inp.special&&f.sp>=100&&f.laserT<=0){f.sp=0;act(f,SPT[f.spk]||5,f.x,f.y,f.aim);}
   f.bob+=dt*(f.moving?14:4);
 }
 function remoteTick(f,dt){
@@ -574,6 +613,7 @@ function remoteTick(f,dt){
   if(d>160){f.x=f.tx;f.y=f.ty;}else{const k=Math.min(1,dt*14);f.x+=(f.tx-f.x)*k;f.y+=(f.ty-f.y)*k;}
   f.bob+=dt*(f.moving?14:4);
   if(f.rolling)rollTick(f);
+  if(f.laserT>0){f.laserT-=dt;laserTick(f,dt);}
 }
 
 // ===== Network (room capability, presence only) =====
@@ -643,7 +683,7 @@ function cleanSet(s){s=s||{};return{stage:STAGES[s.stage]?s.stage:'plaza',time:T
   cpA:Math.max(0,Math.min(4,N(s.cpA)|0)),cpB:Math.max(0,Math.min(4,N(s.cpB)|0)),diff:DIFF[s.diff]?s.diff:'normal',col:PALETTES[s.col]?+s.col:0};}
 function buildPres(){
   const inMatch=MATCH&&(state==='count'||state==='play'||state==='end');
-  const o={v:1,nm:cleanName(cfg.nick)||'プレイヤー',tm:myTeamPick,lk:[cfg.shape,cfg.hat,cfg.eyes],w:cfg.wpn,host:amHost,
+  const o={v:1,nm:cleanName(cfg.nick)||'プレイヤー',tm:myTeamPick,lk:[cfg.shape,cfg.hat,cfg.eyes],w:cfg.wpn,sp:cfg.sp,host:amHost,
     mid:inMatch||amHost&&MATCH?MATCH.mid:null,e:inMatch?fighters.filter(isLocal).map(stateArr):null,ev:inMatch?outbox.filter(v=>performance.now()-v.t<650):null};
   if(amHost){o.ph=myPh;o.set=hostSet();o.ros=MATCH&&myPh!=='lobby'?MATCH.ros:null;o.rnd=MATCH?MATCH.round:0;o.wins=MATCH?MATCH.wins:null;o.res=MATCH?MATCH.res:null;o.tmr=Math.round(timer*10)/10;}
   return o;
@@ -659,9 +699,9 @@ function applyState(s){
   const f=fighters[N(s[0])|0];if(!f||isLocal(f))return;
   f.tx=Math.max(0,Math.min(W,N(s[1])));f.ty=Math.max(0,Math.min(H,N(s[2])));f.aim=N(s[3])/100;
   const fl=N(s[4])|0;f.swim=!!(fl&1);f.moving=!!(fl&2);f.rolling=!!(fl&4)&&f.wpn==='roller';const dead=!!(fl&8);
-  f.hp=Math.max(0,Math.min(100,N(s[5])));f.charge=f.wpn==='charger'?Math.max(0,Math.min(1,N(s[6])/100)):0;
+  f.hp=Math.max(0,Math.min(100,N(s[5])));f.charge=(f.wpn==='charger'||f.wpn==='spinner')?Math.max(0,Math.min(1,N(s[6])/100)):0;
   const dc=N(s[7])|0;
-  if(dc>f.dc){f.dc=dc;f.kb=N(s[8])|0;f.dead=1;f.rolling=false;onDeath(f,fighters[f.kb]||f);}
+  if(dc>f.dc){f.dc=dc;f.kb=N(s[8])|0;f.dead=1;f.rolling=false;f.laserT=0;onDeath(f,fighters[f.kb]||f);}
   else if(!dead&&f.dead>0){f.dead=0;f.x=f.tx;f.y=f.ty;}
   else if(dead)f.dead=1;
 }
@@ -669,7 +709,8 @@ function applyEv(ev){
   if(!Array.isArray(ev))return;
   const f=fighters[N(ev[1])|0],t=N(ev[2])|0;
   if(!f||isLocal(f)||!FIRE[t]||f.dead>0)return;
-  if((t===2&&f.wpn!=='charger')||(t===3&&f.wpn!=='roller')||(t===1&&f.wpn!=='blaster')||(t===0&&f.wpn!=='shooter'))return;
+  if(WPNEV[t]&&f.wpn!==WPNEV[t])return;
+  if(t>=5&&t<=7&&SPT[f.spk]!==t)return;
   FIRE[t](f,Math.max(0,Math.min(W,N(ev[3]))),Math.max(0,Math.min(H,N(ev[4]))),N(ev[5])/1000,N(ev[6]));
 }
 function findHost(ps){let h=null;for(const p of ps){if(p.sameTab)continue;const pr=p.presence;if(pr&&pr.v===1&&pr.host&&(!h||p.peer<h.peer))h=p;}return h;}
@@ -734,16 +775,17 @@ function leaveRoom(msg){
 
 // ===== Match flow =====
 function buildRoster(){
-  const humans=[{id:myId,team:online?myTeamPick:0,nm:cleanName(cfg.nick)||'あなた',w:cfg.wpn,lk:[cfg.shape,cfg.hat,cfg.eyes]}];
+  const humans=[{id:myId,team:online?myTeamPick:0,nm:cleanName(cfg.nick)||'あなた',w:cfg.wpn,sp:cfg.sp,lk:[cfg.shape,cfg.hat,cfg.eyes]}];
   if(online&&named)for(const p of named.peers()){
     if(p.sameTab)continue;const pr=p.presence;if(!pr||pr.v!==1)continue;
     const lk=Array.isArray(pr.lk)?pr.lk:[];
-    humans.push({id:p.peer,team:pr.tm===1?1:0,nm:cleanName(pr.nm)||'プレイヤー',w:WPN[pr.w]?pr.w:'shooter',lk:[SHAPES[lk[0]]?lk[0]:'drop',HATS[lk[1]]?lk[1]:'none',EYES[lk[2]]?lk[2]:'normal']});
+    humans.push({id:p.peer,team:pr.tm===1?1:0,nm:cleanName(pr.nm)||'プレイヤー',w:WPN[pr.w]?pr.w:'shooter',sp:SPS[pr.sp]?pr.sp:'burst',lk:[SHAPES[lk[0]]?lk[0]:'drop',HATS[lk[1]]?lk[1]:'none',EYES[lk[2]]?lk[2]:'normal']});
   }
   const ros=[],per=[0,0];
-  for(const h of humans.slice(0,8)){let t=h.team;if(per[t]>=4)t=1-t;if(per[t]>=4)continue;ros.push([h.id,t,per[t]++,0,h.w,h.lk[0],h.lk[1],h.lk[2],h.nm]);}
+  for(const h of humans.slice(0,8)){let t=h.team;if(per[t]>=4)t=1-t;if(per[t]>=4)continue;ros.push([h.id,t,per[t]++,0,h.w,h.lk[0],h.lk[1],h.lk[2],h.nm,h.sp]);}
   const cps=[cfg.cpA,cfg.cpB];let bi=0;
-  for(const t of[0,1])for(let i=0;i<cps[t]&&per[t]<4;i++)ros.push(['b'+(bi++),t,per[t]++,1,pick(WPN),pick(SHAPES),Math.random()<.35?'none':pick(HATS),pick(EYES),'CP']);
+  const allyT=online?myTeamPick:0;
+  for(const t of[0,1])for(let i=0;i<cps[t]&&per[t]<4;i++){const cw=t===allyT?cfg.cpW[i]:'random';ros.push(['b'+(bi++),t,per[t]++,1,WPN[cw]?cw:pick(WPN),pick(SHAPES),Math.random()<.35?'none':pick(HATS),pick(EYES),'CP',pick(SPS)]);}
   return ros;
 }
 function startSeries(){MATCH=MATCH||{};startRound(1,[0,0]);}
@@ -754,11 +796,11 @@ function startRound(n,wins){
 function startMatchLocal(ros,set,mid,round,wins){
   const myIdx=ros.findIndex(r=>r&&r[0]===myId);
   if(myIdx<0){setOnMsg('試合が始まりました。次のラウンドから参加できます。');return;}
-  ros=ros.map(r=>[String(r[0]),r[1]===1?1:0,Math.max(0,Math.min(3,N(r[2])|0)),r[3]?1:0,WPN[r[4]]?r[4]:'shooter',SHAPES[r[5]]?r[5]:'drop',HATS[r[6]]?r[6]:'none',EYES[r[7]]?r[7]:'normal',cleanName(r[8])]);
+  ros=ros.map(r=>[String(r[0]),r[1]===1?1:0,Math.max(0,Math.min(3,N(r[2])|0)),r[3]?1:0,WPN[r[4]]?r[4]:'shooter',SHAPES[r[5]]?r[5]:'drop',HATS[r[6]]?r[6]:'none',EYES[r[7]]?r[7]:'normal',cleanName(r[8]),SPS[r[9]]?r[9]:'burst']);
   MATCH={mid,ros,set,round,wins:wins.slice(),myIdx,res:null};
   TEAM=PALETTES[set.col];
   initMap(set.stage);
-  bullets=[];bombs=[];parts=[];rings=[];msgs=[];outbox=[];lastSeq={};seenObj={};
+  bullets=[];bombs=[];parts=[];rings=[];msgs=[];lobs=[];storms=[];outbox=[];lastSeq={};seenObj={};
   fighters=ros.map(mkF);fighters.forEach(spawn);
   player=fighters[myIdx];player.isP=true;
   TCOL=TEAM.map(t=>({c:hex(t.c),d:hex(t.d),l:hex(t.l)}));fighters.forEach(f=>f.parts=buildParts(f.look,f.wpn));
@@ -768,7 +810,7 @@ function startMatchLocal(ros,set,mid,round,wins){
   bombBtn.style.display=spBtn.style.display='flex';
   document.getElementById('menu').style.display='none';document.getElementById('res').style.display='none';
 }
-function finishRound(){state='end';endT=2;snd(300,.8,'sawtooth',.07,.5);bullets.length=0;bombs.length=0;T.L=T.R=T.F=null;}
+function finishRound(){state='end';endT=2;snd(300,.8,'sawtooth',.07,.5);bullets.length=0;bombs.length=0;lobs.length=0;storms.length=0;fighters.forEach(f=>{f.laserT=0;f.burstN=0;});T.L=T.R=T.F=null;}
 function endRoundHost(){
   finishRound();
   const p=[counts[0]/total*100,counts[1]/total*100];
@@ -844,6 +886,19 @@ function update(dt){
       else{if(cellAt(b.x,b.y)!==254)addSp(b.owner,paint(b.x,b.y,b.splatR,b.team));burst(b.x,b.y,TEAM[b.team].c,3,90);}}
     if(dead)bullets.splice(i,1);
   }
+  for(let i=lobs.length-1;i>=0;i--){
+    const b=lobs[i];b.t+=dt;if(b.t<b.dur)continue;
+    addSp(b.owner,paint(b.tx,b.ty,24,b.team));burst(b.tx,b.ty,TEAM[b.team].c,6,140);
+    for(const e of fighters){if(e.team===b.team||e.dead>0)continue;if(Math.hypot(e.x-b.tx,e.y-b.ty)<30)damage(e,WPN.slosher.dmg,b.owner);}
+    lobs.splice(i,1);
+  }
+  for(let i=storms.length-1;i>=0;i--){
+    const s=storms[i];s.t-=dt;s.tick-=dt;
+    while(s.tick<=0){s.tick+=.1;s.seed=(s.seed*16807)%2147483647;const a=(s.seed%6283)/1000;s.seed=(s.seed*16807)%2147483647;const r=Math.sqrt((s.seed%1000)/1000)*105;
+      addSp(s.owner,paint(s.x+Math.cos(a)*r,s.y+Math.sin(a)*r,20,s.team)*.3);}
+    for(const e of fighters){if(e.team===s.team||e.dead>0)continue;if(Math.hypot(e.x-s.x,e.y-s.y)<110)damage(e,16*dt,s.owner);}
+    if(s.t<=0)storms.splice(i,1);
+  }
   for(let i=bombs.length-1;i>=0;i--){
     const b=bombs[i];
     if(b.t<b.dur)b.t+=dt;else{b.fuse-=dt;if(b.fuse<=0){explode(b.tx,b.ty,b.team,b.owner,78,90,105);bombs.splice(i,1);}}
@@ -906,14 +961,14 @@ function botInput(f,dt){
       [inp.mx,inp.my]=steer(f,Math.cos(a),Math.sin(a));
       inp.fire=bd<160||Math.random()<.3;
     }else{
-      inp.fire=f.wpn==='charger'?f.charge<1:true;
+      inp.fire=(f.wpn==='charger'||f.wpn==='spinner')?(f.charge<1&&f.burstN<=0):true;
       if(bd>w.pref+40){mx=Math.cos(a);my=Math.sin(a);}else if(bd<w.pref-60){mx=-Math.cos(a);my=-Math.sin(a);}
-      const strafe=f.wpn==='charger'?.3:.8;
+      const strafe=f.wpn==='charger'?.3:f.wpn==='spinner'?.5:.8;
       mx+=Math.cos(a+1.57)*A.str*strafe;my+=Math.sin(a+1.57)*A.str*strafe;
       [inp.mx,inp.my]=steer(f,mx,my);
     }
     if(f.ink>65&&bd>120&&bd<340&&Math.random()<dt*.5*D.bomb){inp.bomb=true;inp.bombDist=bd;inp.fire=false;}
-    if(f.sp>=100&&bd<(D.bomb>1?140:110))inp.special=true;
+    if(f.sp>=100&&(f.spk==='burst'?bd<(D.bomb>1?140:110):bd<(f.spk==='laser'?600:330)))inp.special=true;
     return inp;
   }
   if(A.t<=0||Math.hypot(A.tx-f.x,A.ty-f.y)<30)pickTarget(f);
@@ -922,7 +977,7 @@ function botInput(f,dt){
   const ahead=cellAt(f.x+Math.cos(ma)*90,f.y+Math.sin(ma)*90),here=cellAt(f.x,f.y);
   if(f.ink>20&&(ahead!==f.team+1||here!==f.team+1)){
     if(f.wpn==='roller'){inp.fire=true;}
-    else if(f.wpn==='charger'){inp.fire=f.charge<.55;inp.aim=ma+(Math.random()-.5)*.5;}
+    else if(f.wpn==='charger'||f.wpn==='spinner'){inp.fire=f.charge<.55&&f.burstN<=0;inp.aim=ma+(Math.random()-.5)*.5;}
     else{inp.fire=true;inp.aim=ma+Math.sin(performance.now()/180+f.slot)*.45;}
   }
   if(f.ink>92&&Math.random()<dt*.12*D.bomb){inp.aim=ma;inp.bomb=true;inp.bombDist=240;inp.fire=false;}
@@ -1061,6 +1116,16 @@ function render(now){
   for(const b of bases)E.draw('ring',TS(b.x,.9,b.y,60,1,60),CW,.7,1);
   for(const f of fighters)if(f.dead<=0)drawChar(E,f);
   for(const b of bullets){const r=b.blast?8:b.big?6:5;E.draw('lowsph',TS(b.x,14,b.y,r,r,r),TCOL[b.team].c,1,.15);}
+  for(const b of lobs){const k=Math.min(1,b.t/b.dur),x=b.sx+(b.tx-b.sx)*k,y=b.sy+(b.ty-b.sy)*k,h=14+Math.sin(k*Math.PI)*55;E.draw('sphere',TS(x,h,y,7,7,7),TCOL[b.team].c,1,.15);}
+  for(const s of storms){
+    const Tm=TCOL[s.team],fade=Math.min(1,s.t);
+    E.draw('disc',TS(s.x,.8,s.y,110,1,110),Tm.d,.22*fade,1);
+    for(let k=0;k<6;k++){const a=k/6*6.283+now/1500,r=k%2?55:30;E.draw('sphere',TS(s.x+Math.cos(a)*r,115+Math.sin(now/400+k)*4,s.y+Math.sin(a)*r,32,14,32),[Tm.d[0]*.7+.15,Tm.d[1]*.7+.15,Tm.d[2]*.7+.15],.9*fade,.3);}
+    for(let k=0;k<10;k++){const a=(k*2.4+now/90)%6.283,r=((k*37+now/7)%100),h=90-((now/2+k*31)%90);E.draw('box',TS(s.x+Math.cos(a)*r,h,s.y+Math.sin(a)*r,1.5,9,1.5),Tm.c,.8,1);}
+  }
+  for(const f of fighters){if(f.dead>0||f.laserT<=0)continue;const c=Math.cos(f.aim),s=Math.sin(f.aim),L=f.beamLen||300,th=12+Math.sin(now/40)*2;
+    E.draw('box',rootM(f.x+c*L/2,16,f.y+s*L/2,f.aim,L,th,th,_R),TCOL[f.team].c,.75,1);
+    E.draw('box',rootM(f.x+c*L/2,16,f.y+s*L/2,f.aim,L,th*.4,th*.4,_R),CW,.9,1);}
   for(const b of bombs){
     const k=Math.min(1,b.t/b.dur),x=b.sx+(b.tx-b.sx)*k,y=b.sy+(b.ty-b.sy)*k,h=Math.sin(k*Math.PI)*70;
     const blink=b.t>=b.dur&&((b.fuse*20)|0)%2;
@@ -1116,11 +1181,11 @@ function drawHUD(){
     g.addColorStop(0,'rgba(255,0,60,0)');g.addColorStop(1,`rgba(255,0,60,${(70-player.hp)/70*.5})`);ctx.fillStyle=g;ctx.fillRect(0,0,cw,ch);}
   // crosshair & ink tank
   if(player.dead<=0&&(state==='play'||state==='count')){
-    const w=WPN[player.wpn],rng=player.wpn==='roller'?60:player.wpn==='charger'?300:200;
+    const w=WPN[player.wpn],rng=player.wpn==='roller'?60:player.wpn==='charger'?300:player.wpn==='spinner'?260:player.wpn==='slosher'?180:200;
     const p=P2(player.x+Math.cos(player.aim)*rng,14,player.y+Math.sin(player.aim)*rng);
     if(p&&tps){ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(p[0],p[1],11,0,6.283);ctx.stroke();
       ctx.beginPath();ctx.moveTo(p[0]-18,p[1]);ctx.lineTo(p[0]-8,p[1]);ctx.moveTo(p[0]+8,p[1]);ctx.lineTo(p[0]+18,p[1]);ctx.stroke();
-      if(player.wpn==='charger'&&player.charge>0){ctx.strokeStyle=TEAM[myT()].c;ctx.lineWidth=4;ctx.beginPath();ctx.arc(p[0],p[1],16,-1.57,-1.57+6.283*player.charge);ctx.stroke();}}
+      if((player.wpn==='charger'||player.wpn==='spinner')&&player.charge>0){ctx.strokeStyle=TEAM[myT()].c;ctx.lineWidth=4;ctx.beginPath();ctx.arc(p[0],p[1],16,-1.57,-1.57+6.283*player.charge);ctx.stroke();}}
     const q=P2(player.x,player.swim?6:30,player.y);
     if(q){const x=q[0]-(tps?60:34),y=q[1]-20;
       ctx.fillStyle='rgba(0,0,0,.45)';ctx.fillRect(x,y,9,40);
@@ -1183,9 +1248,9 @@ function drawHUD(){
   const bOff=player.ink<50,sReady=player.sp>=100;
   if(bombBtn._o!==bOff){bombBtn._o=bOff;bombBtn.classList.toggle('off',bOff);}
   const spv=Math.floor(player.sp);
-  if(spBtn._v!==spv){spBtn._v=spv;
+  if(spBtn._v!==spv+(sReady?SPS[player.spk].s:'')){spBtn._v=spv+(sReady?SPS[player.spk].s:'');
     spBtn.style.background=`conic-gradient(${TEAM[myT()].c} ${spv*3.6}deg, rgba(40,30,70,.75) 0)`;
-    spBtn.classList.toggle('ready',sReady);spBtn.textContent=sReady?'SP!':'SP';}
+    spBtn.classList.toggle('ready',sReady);spBtn.textContent=sReady?SPS[player.spk].s+'!':'SP';}
 }
 
 // ===== Preview =====
@@ -1214,7 +1279,7 @@ function loop(now){
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
-window.__dbg={skip(){timer=1.5},cfg,get MATCH(){return MATCH},get online(){return online},get amHost(){return amHost},get fighters(){return fighters},get counts(){return counts},get total(){return total},get state(){return state},setYaw(v){yaw=v;}};
+window.__dbg={skip(){timer=1.5},fill(){player.sp=100},cfg,get MATCH(){return MATCH},get online(){return online},get amHost(){return amHost},get fighters(){return fighters},get counts(){return counts},get total(){return total},get state(){return state},setYaw(v){yaw=v;}};
 
 // ===== Menu & lobby UI =====
 let mode='solo',lobbyT=0;
@@ -1236,6 +1301,13 @@ function buildChips(id,opts,key,label,descId){
 buildChips('g-cam',CAMS,'cam',o=>o.name,'d-cam');
 buildChips('g-sens',{1:'おそい',2:'ややおそい',3:'ふつう',4:'はやい'},'sens',o=>o);
 buildChips('g-wpn',WPN,'wpn',o=>o.name,'d-wpn');
+buildChips('g-sp',SPS,'sp',o=>o.name,'d-sp');
+function refCpw(){const el=$('g-cpw');[...el.children].forEach((row,i)=>{row.classList.toggle('off',i>=((named&&myTeamPick===1)?cfg.cpB:cfg.cpA));[...row.querySelectorAll('.chip')].forEach(c=>c.classList.toggle('sel',c.dataset.k===cfg.cpW[i]));});}
+(()=>{const el=$('g-cpw');const opts={random:'おまかせ'};for(const k in WPN)opts[k]=WPN[k].name;
+  for(let i=0;i<3;i++){const row=document.createElement('div');row.className='cpwrow';const lb=document.createElement('span');lb.className='cpwl';lb.textContent='CP'+(i+1);row.appendChild(lb);
+    for(const k in opts){const b=document.createElement('div');b.className='chip';b.textContent=opts[k];b.dataset.k=k;b.onclick=()=>{cfg.cpW[i]=k;saveCfg();refCpw();};row.appendChild(b);}
+    el.appendChild(row);}
+  refCpw();$('g-cpA').addEventListener('click',()=>setTimeout(refCpw,0));$('g-cpB').addEventListener('click',()=>setTimeout(refCpw,0));})();
 buildChips('g-stage',STAGES,'stage',o=>o.name,'d-stage');
 buildChips('g-diff',DIFF,'diff',o=>o.name,'d-diff');
 buildChips('g-time',TIMES,'time',o=>o);
@@ -1269,6 +1341,7 @@ function refreshOnlineUI(){
   const showSet=mode==='solo'||(named&&amHost);
   $('sec-match').style.display=showSet?'':'none';
   $('l-cpA').textContent=mode==='solo'?'味方のCP（自分のチーム）':'チームAのCP（空きをCPでうめる）';
+  $('l-cpw').textContent=mode==='solo'?'味方CPのブキ':'自分のチームのCPのブキ';
   $('l-cpB').textContent=mode==='solo'?'相手のCP':'チームBのCP';
   const sb=$('startBtn');
   if(mode==='solo'){sb.style.display='';sb.textContent='バトル開始！';}
