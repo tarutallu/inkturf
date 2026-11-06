@@ -92,7 +92,7 @@ input.tx{font-size:16px;padding:9px 12px;border-radius:12px;border:2px solid rgb
 <div id="mapBtn" class="rb">マップ</div>
 
 <div id="menu" class="ov"><div class="inner">
-  <h1>インク・ターフ 3D</h1>
+  <h1>インク・ターフ 3D<small style="font-size:.38em;font-weight:700;opacity:.8;margin-left:.5em;vertical-align:middle;text-shadow:none;color:#fff;letter-spacing:0;-webkit-text-stroke:0">ver.2.0</small></h1>
   <div class="sub">ナワバリ塗りバトル</div>
   <div class="tabs"><div class="tab sel" data-m="solo">ひとりで（CP戦）</div><div class="tab" data-m="online">スマホで対戦</div></div>
   <section id="sec-online" style="display:none"><h3>オンライン対戦</h3>
@@ -446,7 +446,7 @@ const DIFF={
 };
 const SPS={burst:{cost:1,name:'インクバースト',s:'バースト',desc:'自分のまわりを大爆発。近く（中心）の敵は一撃、少し離れた敵にも大ダメージ。発動の瞬間は0.5秒無敵。'},storm:{cost:1.1,name:'インクストーム',s:'ストーム',desc:'狙った先に大きな雨雲を出す。6.5秒間まわりを塗り、中の敵に大ダメージ＋足をおそくする。'},decoy:{cost:1.2,name:'デコイパレード',s:'デコイ',desc:'自分そっくりの分身を2体出す。分身は近くの敵へ走り寄り、近づかれる・撃たれる・時間切れで爆発する。'},
   dive:{cost:1.15,name:'メテオダイブ',s:'ダイブ',desc:'高くジャンプして狙った先へ飛びこみ、着地点を大爆発。着地点の近くに敵がいれば自動でその敵へ飛ぶ。飛んでいる間は無敵。'},
-  skybomb:{cost:1.15,name:'スカイボム',s:'スカイ\nボム',desc:'マップを開いて、ねらった場所に巨大なインク爆弾を落とす。マップ上で指を動かして照準を合わせ、離すと発射。1.3秒後に着弾し、広い範囲を塗って中心は一撃。'},
+  skybomb:{cost:1.45,name:'スカイボム',s:'スカイ\nボム',desc:'マップを開いて、ねらった場所に巨大なインク爆弾を落とす。マップ上で指を動かして照準を合わせ、離すと発射。1.3秒後に着弾し、広い範囲を塗って中心は一撃。爆発の大きさはマップの広さに合わせて変わる。'},
   tornado:{cost:1.1,name:'インクトルネード',s:'トルネード',desc:'前に進む竜巻を出す。まわりの敵を吸いこみながら大ダメージを与え、通った道を広く塗る。'},
   hover:{cost:1.1,name:'スカイホバー',s:'ホバー',desc:'7秒間空中に浮かぶ。インク無限・弾の威力35%アップ・受けるダメージ30%カット。壁や水路の上も動ける。'},
   laser:{cost:1.35,name:'メガレーザー',s:'レーザー',desc:'壁で止まる極太レーザーを1.9秒撃ち続ける。当てればすぐ倒せる。撃っている間は受けるダメージ半分。'}};
@@ -532,10 +532,10 @@ if(!Array.isArray(cfg.cpW))cfg.cpW=[];cfg.cpW=[0,1,2].map(i=>WPN[cfg.cpW[i]]?cfg
 function saveCfg(){try{localStorage.setItem('inkturf3d',JSON.stringify(cfg));}catch(e){}}
 
 // ===== World =====
-let W=1600,H=1000,MS=1;const CS=8;let GW=W/CS,GH=Math.ceil(H/CS);
+let W=1600,H=1000,MS=1,SKR=150,SKC=80;const CS=8;let GW=W/CS,GH=Math.ceil(H/CS);
 const bases=[{x:110,y:500},{x:W-110,y:500}];
 // map scale: layouts are drawn for 1600x1000 and stretched; spawn areas keep their size
-function setMapScale(k){MS=Math.max(1,Math.min(3,k||1));W=Math.round(1600*MS/CS)*CS;H=Math.round(1000*MS/CS)*CS;GW=W/CS;GH=H/CS;
+function setMapScale(k){MS=Math.max(1,Math.min(3,k||1));SKR=150*MS;SKC=80*MS;W=Math.round(1600*MS/CS)*CS;H=Math.round(1000*MS/CS)*CS;GW=W/CS;GH=H/CS;
   bases[0].x=110;bases[0].y=H/2;bases[1].x=W-110;bases[1].y=H/2;}
 const scaleRects=l=>l.map(([x,y,w,h])=>[x*MS,y*MS,w*MS,h*MS]);
 // Bigger maps: the stage layout spreads out, obstacles stay close to normal size, and extra obstacles
@@ -686,7 +686,7 @@ function snd(f,d,type='square',v=.04,slide=0){
 // ===== Entities =====
 let baseHintT=0,pops=[];
 let tornados=[],mines=[],strikes=[];
-const SKR=235,SKC=125;let mapCur=null,mapOpen=false,mapMode='jump',pendSJ=null,pendStrike=null,mapRect=null;
+let mapCur=null,mapOpen=false,mapMode='jump',pendSJ=null,pendStrike=null,mapRect=null;
 let fighters=[],bullets=[],bombs=[],parts=[],rings=[],msgs=[],lobs=[],storms=[],curls=[],sprinklers=[],decoys=[],pads=[];
 let player=null,state='menu',timer=120,countT=0,endT=0,noInkT=0,cam={x:0,y:0};
 let MATCH=null,amHost=true,online=false;
