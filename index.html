@@ -112,7 +112,10 @@ input.tx{font-size:16px;padding:9px 12px;border-radius:12px;border:2px solid rgb
   </section>
   <section id="sec-match"><h3>試合設定</h3>
     <div class="lbl2">ルール</div><div class="chips" id="g-mode"></div><div class="desc" id="d-mode"></div>
+    <div id="koRow"><div class="lbl2">キルバトルの勝利キル数</div><div class="chips" id="g-ko"></div></div>
     <div class="lbl2">ステージ</div><div class="chips" id="g-stage"></div><div class="desc" id="d-stage"></div>
+    <div class="lbl2">マップの大きさ <b class="sv" id="msV"></b></div><div class="sl"><span>ふつう</span><input type="range" id="msR" min="1" max="3" step="0.25"><span>巨大</span></div>
+    <div class="desc">ステージ全体の広さを最大3倍（面積は約9倍）まで広げられる。広いマップは長めの試合時間がおすすめ。</div>
     <div class="lbl2">試合時間</div><div class="chips" id="g-time"></div>
     <div class="lbl2">試合形式</div><div class="chips" id="g-rounds"></div>
     <div class="lbl2" id="l-cpA">味方のCP</div><div class="chips" id="g-cpA"></div>
@@ -295,7 +298,7 @@ function Engine(canvas,withFloor){
     floor(cnv,dirty,col,W,H){
       gl.useProgram(fp);
       gl.bindBuffer(gl.ARRAY_BUFFER,fbuf);
-      if(!fbuf.ok||fbuf.W!==W){gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([0,0,0,W,0,0,W,0,H,0,0,0,W,0,H,0,0,H]),gl.STATIC_DRAW);fbuf.ok=1;fbuf.W=W;}
+      if(!fbuf.ok||fbuf.W!==W||fbuf.H!==H){gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([0,0,0,W,0,0,W,0,H,0,0,0,W,0,H,0,0,H]),gl.STATIC_DRAW);fbuf.ok=1;fbuf.W=W;fbuf.H=H;}
       gl.enableVertexAttribArray(FL.p);gl.vertexAttribPointer(FL.p,3,gl.FLOAT,false,12,0);
       gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,tex);
       if(dirty){gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,false);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,cnv);}
@@ -445,16 +448,18 @@ const SUBS={bomb:{name:'ふつうボム',s:'ボム',cost:50,cd:.8,desc:'山な�
   pad:{name:'ジャンプパッド',s:'ジャンプ\nパッド',cost:40,cd:1,desc:'踏んだ仲間を高くジャンプさせる台を置く。壁や水路もこえられる。15秒・1人1つまで。'},
   sprinkler:{name:'スプリンクラー',s:'スプリン\nクラー',cost:60,cd:1.2,desc:'置いた場所で10秒間、まわりにインクをまき続ける。1人1つまで。'}};
 const MODES={turf:{name:'ナワバリバトル',desc:'時間内に、床をより多く自分の色で塗ったチームの勝ち。'},
-  kill:{name:'キルバトル',desc:'相手をたおした数を競う。先に20キルでノックアウト勝ち。塗りは移動と回復に使おう。'},
+  kill:{name:'キルバトル',desc:'相手をたおした数を競う。先に決めたキル数（下で設定）に届いたらノックアウト勝ち。塗りは移動と回復に使おう。'},
   flag:{name:'フラッグキャッチ',desc:'相手の旗をうばって自分の旗の台まで持ちかえる。先に3回でノックアウト勝ち。持っている間は泳げず少しおそい。'},
   hill:{name:'うごくエリア',desc:'20秒ごとに場所が変わるエリアを奪い合う。確保中にポイントが増え、先に100でノックアウト勝ち。'},
   coin:{name:'コインラッシュ',desc:'ステージに出てくるコインを集める。先に40枚でノックアウト勝ち。やられるとチームのコインを2枚落とす。'},
   stock:{name:'ストックバトル',desc:'チームのライフ（1人3つ）を取り合う。やられるとライフが1減り、先に0になったチームの負け。'},
   zone:{name:'エリアキープ',desc:'中央のエリアを自分の色で6割以上塗ると確保。確保中にポイントが増え、先に100でノックアウト勝ち。'}};
+const KILL_KOS={5:'5キル',10:'10キル',15:'15キル',20:'20キル',30:'30キル',50:'50キル'};
+const KO_K=()=>MATCH&&MATCH.set.ko||20;
 const KILL_KO=20,COIN_KO=40,FLAG_KO=3,ZONE={x:800,y:500,r:195};
 const HILLS=[[800,500],[470,260],[1130,740],[470,740],[1130,260]];
 const ZM=m=>m==='zone'||m==='hill';
-function moveHill(i){const h=HILLS[i%HILLS.length];ZONE.x=h[0];ZONE.y=h[1];calcZoneCells();zoneLocal=-1;if(MATCH){MATCH.zc=-1;MATCH.ziT=20;MATCH.zi=i;}
+function moveHill(i){const h=HILLS[i%HILLS.length];ZONE.x=h[0]*MS;ZONE.y=h[1]*MS;calcZoneCells();zoneLocal=-1;if(MATCH){MATCH.zc=-1;MATCH.ziT=20;MATCH.zi=i;}
   if(state==='play'){say('エリアが移動した！','#fff');snd(520,.3,'square',.05,1.5);rings.push({x:ZONE.x,y:ZONE.y,r:10,max:ZONE.r,c:'#ffffff',life:.6});}}
 let flagPrev='';
 function flagTick(dt){
@@ -483,7 +488,7 @@ function flagTick(dt){
   flagPrev=key;
 }
 function calcZoneCells(){zoneCells=[];if(!grid)return;for(let gy=0;gy<GH;gy++)for(let gx=0;gx<GW;gx++){const x=(gx+.5)*CS-ZONE.x,y=(gy+.5)*CS-ZONE.y;if(x*x+y*y<ZONE.r*ZONE.r&&grid[gy*GW+gx]<254)zoneCells.push(gy*GW+gx);}}
-function flagHome(t){return t===0?[330,500]:[W-330,500];}
+function flagHome(t){const d=330+(MS-1)*260;return t===0?[d,H/2]:[W-d,H/2];}
 function carrying(f){return!!(MATCH&&MATCH.flags&&MATCH.flags.some(fl=>fl.holder===f.idx));}
 const SUBT={bomb:4,quick:10,curl:11,sprinkler:12,pad:13};
 const WPNEV={0:'shooter',1:'blaster',2:'charger',3:'roller',8:'spinner',9:'slosher',18:'shotgun',19:'bow'};
@@ -492,17 +497,21 @@ const HATS={none:'なし',cap:'キャップ',knit:'ニット',crown:'おうか�
 const EYES={normal:'ふつう',kiri:'キリッ',kira:'キラキラ',nemui:'ねむい'};
 
 const CAMS={tps:{name:'うしろ（TPS）',desc:'キャラの後ろから見る3D視点。右下ボタンで撃つ。'},top:{name:'見下ろし',desc:'斜め上から見る3D視点。2D版と同じ操作で遊びやすい。'}};
-const TIMES={60:'1分',120:'2分',180:'3分'};
+const TIMES={60:'1分',120:'2分',180:'3分',240:'4分',300:'5分',360:'6分'};
 const ROUNDS={1:'1本勝負',3:'3本勝負（2本先取）',5:'5本勝負（3本先取）'};
 let paintDirty=true;
-let cfg={vert:'on',phys:'on',look:'on',vgear:'on',wpn:'shooter',stage:'plaza',diff:'normal',col:0,shape:'drop',hat:'none',eyes:'normal',cam:'tps',sens:3,sensV:0,sensY:.6,gyro:0,autoCam:1,sp:'burst',cpW:['random','random','random'],cpS:['random','random','random'],mode:'turf',skillsOn:'on',skill:'none',cpK:['random','random','random'],sub:'bomb',cpU:['random','random','random'],time:120,rounds:1,cpA:2,cpB:3,nick:''};
+let cfg={mapScale:1,killKO:20,vert:'on',phys:'on',look:'on',vgear:'on',wpn:'shooter',stage:'plaza',diff:'normal',col:0,shape:'drop',hat:'none',eyes:'normal',cam:'tps',sens:3,sensV:0,sensY:.6,gyro:0,autoCam:1,sp:'burst',cpW:['random','random','random'],cpS:['random','random','random'],mode:'turf',skillsOn:'on',skill:'none',cpK:['random','random','random'],sub:'bomb',cpU:['random','random','random'],time:120,rounds:1,cpA:2,cpB:3,nick:''};
 try{const s=JSON.parse(localStorage.getItem('inkturf3d')||'null');if(s)for(const k in cfg)if(s[k]!=null&&typeof s[k]===typeof cfg[k])cfg[k]=s[k];}catch(e){}
 if(!Array.isArray(cfg.cpW))cfg.cpW=[];cfg.cpW=[0,1,2].map(i=>WPN[cfg.cpW[i]]?cfg.cpW[i]:'random');if(!SPS[cfg.sp])cfg.sp='burst';if(cfg.vert==='off'&&!cfg.phys){cfg.phys='off';cfg.look='off';cfg.vgear='off';}for(const k of['phys','look','vgear'])if(cfg[k]!=='off')cfg[k]='on';if(!SUBS[cfg.sub])cfg.sub='bomb';if(!MODES[cfg.mode])cfg.mode='turf';if(!Array.isArray(cfg.cpU))cfg.cpU=[];cfg.cpU=[0,1,2].map(i=>SUBS[cfg.cpU[i]]?cfg.cpU[i]:'random');if(!Array.isArray(cfg.cpS))cfg.cpS=[];if(!SKILLS[cfg.skill])cfg.skill='none';if(cfg.skillsOn!=='off')cfg.skillsOn='on';if(!Array.isArray(cfg.cpK))cfg.cpK=[];cfg.cpK=[0,1,2].map(i=>SKILLS[cfg.cpK[i]]?cfg.cpK[i]:'random');cfg.cpS=[0,1,2].map(i=>SPS[cfg.cpS[i]]?cfg.cpS[i]:'random');if(!WPN[cfg.wpn])cfg.wpn='shooter';
 function saveCfg(){try{localStorage.setItem('inkturf3d',JSON.stringify(cfg));}catch(e){}}
 
 // ===== World =====
-const W=1600,H=1000,CS=8,GW=W/CS,GH=Math.ceil(H/CS);
+let W=1600,H=1000,MS=1;const CS=8;let GW=W/CS,GH=Math.ceil(H/CS);
 const bases=[{x:110,y:500},{x:W-110,y:500}];
+// map scale: layouts are drawn for 1600x1000 and stretched; spawn areas keep their size
+function setMapScale(k){MS=Math.max(1,Math.min(3,k||1));W=Math.round(1600*MS/CS)*CS;H=Math.round(1000*MS/CS)*CS;GW=W/CS;GH=H/CS;
+  bases[0].x=110;bases[0].y=H/2;bases[1].x=W-110;bases[1].y=H/2;}
+const scaleRects=l=>l.map(([x,y,w,h])=>[x*MS,y*MS,w*MS,h*MS]);
 let STG,walls=[],pits=[];
 function mirrorList(list){const o=[];list.forEach(([x,y,w,h])=>{o.push({x,y,w,h});const m={x:W-x-w,y:H-y-h,w,h};if(m.x!==x||m.y!==y)o.push(m);});return o;}
 
@@ -514,7 +523,7 @@ const ownBaseM=(x,y,t,m)=>{const b=bases[t];return(x-b.x)**2+(y-b.y)**2<(BASE_R+
 const inOwnBase=(x,y,t)=>{const b=bases[t];return(x-b.x)**2+(y-b.y)**2<BASE_R*BASE_R;};
 function markRect(r,v){for(let gy=Math.floor(r.y/CS);gy<Math.ceil((r.y+r.h)/CS);gy++)for(let gx=Math.floor(r.x/CS);gx<Math.ceil((r.x+r.w)/CS);gx++)if(gx>=0&&gy>=0&&gx<GW&&gy<GH)grid[gy*GW+gx]=v;}
 function initMap(sk){
-  STG=STAGES[sk]||STAGES.plaza;walls=mirrorList(STG.walls);pits=mirrorList(STG.pits);
+  STG=STAGES[sk]||STAGES.plaza;walls=mirrorList(scaleRects(STG.walls));pits=mirrorList(scaleRects(STG.pits));
   grid=new Uint8Array(GW*GH);counts=[0,0];prot=new Uint8Array(GW*GH);
   for(let gy=0;gy<GH;gy++)for(let gx=0;gx<GW;gx++){const x=(gx+.5)*CS,y=(gy+.5)*CS;for(let t=0;t<2;t++)if((x-bases[t].x)**2+(y-bases[t].y)**2<(BASE_R+4)**2)prot[gy*GW+gx]=t+1;}
   pc=document.createElement('canvas');pc.width=GW;pc.height=GH;pctx=pc.getContext('2d');
@@ -878,8 +887,8 @@ const N=v=>Number.isFinite(+v)?+v:0;
 const cleanName=s=>String(s==null?'':s).replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁠-⁯﻿]/g,'').trim().slice(0,10);
 function outEv(f,type,x,y,a,p){const ev=[++outSeq,f.idx,type,Math.round(x),Math.round(y),Math.round(a*1000),Math.round(p),Math.round((f.pitch||0)*1000)];ev.t=performance.now();outbox.push(ev);if(outbox.length>24)outbox.shift();}
 function stateArr(f){return[f.idx,Math.round(f.x),Math.round(f.y),Math.round(f.aim*100),(f.swim?1:0)|(f.moving?2:0)|(f.rolling?4:0)|(f.dead>0?8:0)|(f.skOn?64:0),Math.round(f.hp),Math.round(f.charge*100),f.dc,f.kb,Math.round(f.h||0),f.dive?1:0,f.ast||[],Math.round(f.shield||0)];}
-function hostSet(){return{phys:cfg.phys==='off'?0:1,look:cfg.look==='off'?0:1,vg:cfg.vgear==='off'?0:1,skl:cfg.skillsOn==='off'?0:1,mode:cfg.mode,stage:cfg.stage,time:cfg.time,rounds:cfg.rounds,cpA:cfg.cpA,cpB:cfg.cpB,diff:cfg.diff,col:cfg.col};}
-function cleanSet(s){s=s||{};return{phys:s.phys===0?0:1,look:s.look===0?0:1,vg:s.vg===0?0:1,skl:s.skl===0?0:1,mode:MODES[s.mode]?s.mode:'turf',stage:STAGES[s.stage]?s.stage:'plaza',time:TIMES[s.time]?+s.time:120,rounds:ROUNDS[s.rounds]?+s.rounds:1,
+function hostSet(){return{ms:cfg.mapScale,ko:cfg.killKO,phys:cfg.phys==='off'?0:1,look:cfg.look==='off'?0:1,vg:cfg.vgear==='off'?0:1,skl:cfg.skillsOn==='off'?0:1,mode:cfg.mode,stage:cfg.stage,time:cfg.time,rounds:cfg.rounds,cpA:cfg.cpA,cpB:cfg.cpB,diff:cfg.diff,col:cfg.col};}
+function cleanSet(s){s=s||{};return{ms:Math.max(1,Math.min(3,Math.round((+s.ms||1)*4)/4)),ko:KILL_KOS[s.ko]?+s.ko:20,phys:s.phys===0?0:1,look:s.look===0?0:1,vg:s.vg===0?0:1,skl:s.skl===0?0:1,mode:MODES[s.mode]?s.mode:'turf',stage:STAGES[s.stage]?s.stage:'plaza',time:TIMES[s.time]?+s.time:120,rounds:ROUNDS[s.rounds]?+s.rounds:1,
   cpA:Math.max(0,Math.min(4,N(s.cpA)|0)),cpB:Math.max(0,Math.min(4,N(s.cpB)|0)),diff:DIFF[s.diff]?s.diff:'normal',col:PALETTES[s.col]?+s.col:0};}
 function buildPres(){
   const inMatch=MATCH&&(state==='count'||state==='play'||state==='end');
@@ -1012,7 +1021,8 @@ function startMatchLocal(ros,set,mid,round,wins){
   MATCH={mid,ros,set,round,wins:wins.slice(),myIdx,res:null,sc:[0,0],zc:-1,ko:false,coins:[],coinId:0,coinT:0,lives0:3};
   if(set.mode==='stock'){const n=[0,0];ros.forEach(r=>n[r[1]]++);MATCH.sc=[n[0]*3,n[1]*3];MATCH.lives0=Math.max(1,n[0],n[1])*3;}zoneLocal=-1;zoneShare=[0,0];
   TEAM=PALETTES[set.col];
-  if(set.mode==='hill'){ZONE.x=HILLS[0][0];ZONE.y=HILLS[0][1];ZONE.r=150;MATCH.zi=0;MATCH.ziT=20;}else{ZONE.x=800;ZONE.y=500;ZONE.r=195;}
+  setMapScale(set.ms);
+  if(set.mode==='hill'){ZONE.x=HILLS[0][0]*MS;ZONE.y=HILLS[0][1]*MS;ZONE.r=150*Math.sqrt(MS);MATCH.zi=0;MATCH.ziT=20;}else{ZONE.x=W/2;ZONE.y=H/2;ZONE.r=195*Math.sqrt(MS);}
   initMap(set.stage);
   flagPrev='';if(set.mode==='flag')MATCH.flags=[0,1].map(t=>{const h=flagHome(t);return{team:t,hx:h[0],hy:h[1],x:h[0],y:h[1],holder:-1,dropT:0};});
   bullets=[];bombs=[];parts=[];rings=[];msgs=[];lobs=[];storms=[];curls=[];sprinklers=[];decoys=[];pads=[];tornados=[];mines=[];outbox=[];lastSeq={};seenObj={};
@@ -1187,7 +1197,7 @@ function update(dt){
         if(prev!==zoneLocal&&zoneLocal>=0){say(zoneLocal===myT()?'エリア確保！':'エリアをとられた！',TEAM[zoneLocal].c);snd(zoneLocal===myT()?740:260,.3,'square',.05,1.3);}}
       if(amHost&&MATCH.zc>=0)MATCH.sc[MATCH.zc]=Math.min(100,MATCH.sc[MATCH.zc]+1.6*dt);
       if(amHost&&Math.max(MATCH.sc[0],MATCH.sc[1])>=100){MATCH.ko=true;say('ノックアウト！','#fff');endRoundHost();}
-    }else if(md==='kill'&&amHost&&Math.max(MATCH.sc[0],MATCH.sc[1])>=KILL_KO){say('ノックアウト！','#fff');endRoundHost();}
+    }else if(md==='kill'&&amHost&&Math.max(MATCH.sc[0],MATCH.sc[1])>=KO_K()){say('ノックアウト！','#fff');endRoundHost();}
     else if(md==='coin'&&amHost){
       MATCH.coinT-=dt;if(MATCH.coinT<=0){MATCH.coinT=1.3;if(MATCH.coins.length<14)spawnCoin();}
       for(let i=MATCH.coins.length-1;i>=0;i--){const c=MATCH.coins[i];
@@ -1527,7 +1537,7 @@ function camera(){
 function render(now){
   const E=eng,cm=camera();
   E.frame(gcv.width,gcv.height,SKY,cm.e,cm.t,cm.fov,cm.fog);
-  E.draw('quad',TS(W/2,-1,H/2,6000,1,6000),GROUND,1,.6);
+  E.draw('quad',TS(W/2,-1,H/2,Math.max(6000,W*4),1,Math.max(6000,W*4)),GROUND,1,.6);
   E.floor(pc,paintDirty,hex(STG.floor),W,H);paintDirty=false;
   const wc=hex(STG.wall),tc=hex(STG.top);
   for(const w of walls){E.draw('box',TS(w.x+w.w/2,25,w.y+w.h/2,w.w,50,w.h),wc);E.draw('box',TS(w.x+w.w/2,50.5,w.y+w.h/2,w.w+.4,2,w.h+.4),tc);}
@@ -1656,7 +1666,7 @@ function drawHUD(){
     ctx.fillStyle=TEAM[1].c;ctx.fillRect(gx+gw-gw*counts[1]/total,gy,gw*counts[1]/total,10);
     ctx.fillStyle='#fff';ctx.fillRect(cw/2-1,gy-3,2,16);
   }else{
-    const mx2=md==='flag'?FLAG_KO:md==='kill'?KILL_KO:md==='coin'?COIN_KO:md==='stock'?MATCH.lives0:100,hw=gw/2-4;
+    const mx2=md==='flag'?FLAG_KO:md==='kill'?KO_K():md==='coin'?COIN_KO:md==='stock'?MATCH.lives0:100,hw=gw/2-4;
     ctx.fillStyle=TEAM[0].c;ctx.fillRect(cw/2-4-hw*Math.min(1,MATCH.sc[0]/mx2),gy,hw*Math.min(1,MATCH.sc[0]/mx2),10);
     ctx.fillStyle=TEAM[1].c;ctx.fillRect(cw/2+4,gy,hw*Math.min(1,MATCH.sc[1]/mx2),10);
     ctx.font='900 17px system-ui,sans-serif';ctx.lineWidth=4;ctx.strokeStyle='#1a1430';
@@ -1664,7 +1674,7 @@ function drawHUD(){
     [0,1].forEach(t=>{const tx=t?gx+gw+22:gx-22,v=Math.floor(MATCH.sc[t]);ctx.strokeText(v+unit,tx,gy+5);ctx.fillStyle=TEAM[t].c;ctx.fillText(v+unit,tx,gy+5);});
     if(ZM(md)){const zc=online&&!amHost?MATCH.zc:zoneLocal;ctx.font='800 12px system-ui,sans-serif';const lab=(md==='hill'?`移動まで${Math.max(0,Math.ceil(MATCH.ziT||0))}秒・`:'')+(zc<0?'エリア：中立':(zc===myT()?'エリア確保中！':'エリアを取り返せ！'));
       ctx.strokeText(lab,cw/2,gy+24);ctx.fillStyle=zc<0?'#fff':TEAM[zc].c;ctx.fillText(lab,cw/2,gy+24);}
-    if(md==='kill'||md==='coin'||md==='stock'||md==='flag'){ctx.font='800 12px system-ui,sans-serif';const lab=md==='flag'?(carrying(player)?'旗を自分の旗の台へ持ちかえれ！':`先に${FLAG_KO}回持ちかえると勝利`):md==='kill'?`先に${KILL_KO}キルで勝利`:md==='coin'?`先にコイン${COIN_KO}枚で勝利`:'ライフ（残り）が0で負け';ctx.strokeText(lab,cw/2,gy+24);ctx.fillStyle='#fff';ctx.fillText(lab,cw/2,gy+24);}
+    if(md==='kill'||md==='coin'||md==='stock'||md==='flag'){ctx.font='800 12px system-ui,sans-serif';const lab=md==='flag'?(carrying(player)?'旗を自分の旗の台へ持ちかえれ！':`先に${FLAG_KO}回持ちかえると勝利`):md==='kill'?`先に${KO_K()}キルで勝利`:md==='coin'?`先にコイン${COIN_KO}枚で勝利`:'ライフ（残り）が0で負け';ctx.strokeText(lab,cw/2,gy+24);ctx.fillStyle='#fff';ctx.fillText(lab,cw/2,gy+24);}
   }
   for(let t=0;t<2;t++)fighters.filter(f=>f.team===t).forEach((f,i)=>{
     const x=t===0?cw/2-74-i*24:cw/2+74+i*24,y=top+19;
@@ -1809,6 +1819,10 @@ buildSlots('g-cpk','cpK',Object.fromEntries(Object.entries(SKILLS).filter(([k])=
 $('g-cpA').addEventListener('click',()=>setTimeout(refSlots,0));$('g-cpB').addEventListener('click',()=>setTimeout(refSlots,0));
 const refCpw=refSlots;
 buildChips('g-mode',MODES,'mode',o=>o.name,'d-mode');
+(()=>{const R=$('msR'),show=()=>{R.value=cfg.mapScale;$('msV').textContent=' ×'+(+cfg.mapScale).toFixed(2)+(cfg.mapScale>1?`（面積 約${(cfg.mapScale*cfg.mapScale).toFixed(1)}倍）`:'');};
+  R.addEventListener('input',()=>{cfg.mapScale=+R.value;saveCfg();show();});show();})();
+buildChips('g-ko',KILL_KOS,'killKO',o=>o);
+const refKo=()=>{$('koRow').style.display=cfg.mode==='kill'?'':'none';};refKo();$('g-mode').addEventListener('click',()=>setTimeout(refKo,0));
 buildChips('g-stage',STAGES,'stage',o=>o.name,'d-stage');
 buildChips('g-diff',DIFF,'diff',o=>o.name,'d-diff');
 buildChips('g-time',TIMES,'time',o=>o);
@@ -1895,7 +1909,7 @@ function renderLobby(){
   $('joinA').style.background=myTeamPick===0?pal[0].c:'';$('joinB').style.background=myTeamPick===1?pal[1].c:'';
   $('joinA').classList.toggle('sel',myTeamPick===0);$('joinB').classList.toggle('sel',myTeamPick===1);
   $('hostInfo').textContent=amHost?`あなたがホストです。下の「試合設定」を決めてから「準備OK」を押してください。全員が準備OKになると試合が始まります。`:
-    (hostPres?`ホストの設定：${MODES[set.mode].name}／スキル${set.skl?'あり':'なし'}／物理${set.phys?'あり':'なし'}／上下視点${set.look?'あり':'なし'}／ジャンプ系${set.vg?'あり':'なし'}／${STAGES[set.stage].name}／${TIMES[set.time]}／${ROUNDS[set.rounds]}／CPのつよさ ${DIFF[set.diff].name}。準備ができたら「準備OK」を押してください。`:'ホストを探しています…');
+    (hostPres?`ホストの設定：マップ×${set.ms}／${MODES[set.mode].name}${set.mode==='kill'?`（${set.ko}キル）`:''}／スキル${set.skl?'あり':'なし'}／物理${set.phys?'あり':'なし'}／上下視点${set.look?'あり':'なし'}／ジャンプ系${set.vg?'あり':'なし'}／${STAGES[set.stage].name}／${TIMES[set.time]}／${ROUNDS[set.rounds]}／CPのつよさ ${DIFF[set.diff].name}。準備ができたら「準備OK」を押してください。`:'ホストを探しています…');
   updateReadyUI();
 }
 function readyCount(){const ps=named?named.peers().filter(p=>p.presence&&p.presence.v===1):[];return[ps.filter(p=>p.sameTab?myReady:!!p.presence.rdy).length,Math.max(1,ps.length)];}
