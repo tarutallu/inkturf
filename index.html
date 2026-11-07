@@ -587,7 +587,7 @@ const SPS={burst:{cost:1.2,name:'インクバースト',s:'バースト',desc:'�
   tornado:{cost:1.25,name:'インクトルネード',s:'トルネード',desc:'前に進む竜巻を出す。まわりの敵を吸いこみながら大ダメージを与え、通った道を広く塗る。'},
   hover:{cost:1.2,name:'スカイホバー',s:'ホバー',desc:'7秒間空中に浮かぶ。インク無限・弾の威力35%アップ・受けるダメージ30%カット。壁や水路の上も動ける。'},
   laser:{cost:1.4,name:'メガレーザー',s:'レーザー',desc:'壁で止まる極太レーザーを1.9秒撃ち続ける。当てればすぐ倒せる。撃っている間は受けるダメージ半分。'},
-  soul:{cost:3.26,name:'ソウルコントロール',s:'ソウル\nコントロール',desc:'20秒間、青いオーラをまとい、体力が2倍になる（増えた分はシールド。敵を倒すと体力もシールドも全回復。シールドは時間切れ後も残るが、壊れると戻らない）。その間はSPゲージのたまりが0.75倍。その間に倒した敵の場所に魂人形が残る。魂人形の方を向くと「Bomb!」（インクバースト級の爆発）か「Control!」（ランダムなブキで近くの敵を襲う。体力1.5倍・攻撃力1/2、15秒で消える）を選べる（PCはCキーでBomb!、VキーでControl!）。何もしないと10秒で消える。'},
+  soul:{cost:3.26,name:'ソウルコントロール',s:'ソウル\nコントロール',desc:'20秒間（終了後8秒は再使用不可）、青いオーラをまとい、体力が2倍になる（増えた分はシールド。敵を倒すと体力もシールドも全回復。シールドは時間切れ後も残るが、壊れると戻らない）。その間はSPゲージのたまりが0.75倍。その間に倒した敵の場所に魂人形が残る。魂人形の方を向くと「Bomb!」（インクバースト級の爆発）か「Control!」（ランダムなブキで近くの敵を襲う。体力1.5倍・攻撃力1/2、15秒で消える）を選べる（PCはCキーでBomb!、VキーでControl!）。何もしないと10秒で消える。'},
   bigroller:{cost:1.3,name:'ビッグローラー',s:'ビッグ\nローラー',desc:'6秒間、ブキが巨大なローラーに変わる。動くだけで太い道を塗り、ローラーや体に触れた敵は一撃。うつボタンで大きなインクの波を飛ばす。使っている間は受けるダメージ30%カット（泳げない）。'}};
 const SKILLS={
   none:{name:'なし',desc:'スキルを使わない。'},
@@ -1287,7 +1287,7 @@ function damage(f,d,src){
 function coinSpot(){for(let i=0;i<30;i++){const x=80+Math.random()*(W-160),y=60+Math.random()*(H-120);if(!blocked(x,y,14)&&!inOwnBase(x,y,0)&&!inOwnBase(x,y,1))return[x,y];}return[W/2,H/2-200];}
 function spawnCoin(x,y){if(!MATCH||MATCH.coins.length>=24)return;if(x==null){[x,y]=coinSpot();}else if(blocked(x,y,10)){[x,y]=coinSpot();}MATCH.coins.push({id:++MATCH.coinId,x,y});}
 function onDeath(f,src,ast){
-  f.soulT=0;f.soulSh=0;
+  if(f.soulT>0)f.soulCd=8;f.soulT=0;f.soulSh=0;
   for(const a of(ast||[])){const af=fighters[a|0];if(!af||af===src||af.team!==src.team)continue;af.assists=(af.assists||0)+1;statAssist(af);
     if(isLocal(af))addSp(af,120,'k');if(af.isP){sayS(f.isBot||!f.nm?'アシスト！':`${f.nm} をアシスト！`,TEAM[af.team].l);snd(880,.12,'triangle',.04,1.3);}}
   src.kills++;statKill(src,f);statDeath(f);if(PRACTICE&&src.isP&&f.dummy)PROF.prK++;
@@ -1439,7 +1439,7 @@ function updF(f,inp,dt){
     if(J.t<.45){f.h=gh(f.x,f.y);}else{const k=Math.min(1,(J.t-.45)/1.15),g0=gh(J.sx,J.sy),g1=gh(J.tx,J.ty);f.x=J.sx+(J.tx-J.sx)*k;f.y=J.sy+(J.ty-J.sy)*k;f.h=g0+(g1-g0)*k+Math.sin(k*Math.PI)*280+(k<1?1:0);
       if(k>=1){f.h=gh(f.x,f.y);f.vh=0;f.sj=null;findFree(f);f.spawnT=Math.max(f.spawnT||0,.6);paint(f.x,f.y,30,f.team);burst(f.x,f.y,TEAM[f.team].c,14,220);if(f.isP)snd(200,.25,'sawtooth',.05,.5);}}
     f.bob+=dt*6;return;}
-  f.padCd-=dt;f.dodgeT=(f.dodgeT||0)-dt;if(f.bigT>0)f.bigT-=dt;if(f.soulT>0)f.soulT-=dt;
+  f.padCd-=dt;f.dodgeT=(f.dodgeT||0)-dt;if(f.bigT>0)f.bigT-=dt;if(f.soulT>0){f.soulT-=dt;if(f.soulT<=0)f.soulCd=8;}if(f.soulCd>0)f.soulCd-=dt;
   if(inp.skill&&f.skill!=='none'&&f.kills>=1){f.skOn=!f.skOn;statSkill(f);if(f.skOn&&f.skill==='shield'){f.shield=30;f.shT=0;}if(f.isP){say(`${SKILLS[f.skill].name}：${f.skOn?'ON':'OFF'}`,TEAM[f.team].l);snd(f.skOn?990:440,.15,'triangle',.05,1.3);if(f.skill==='fps'){if(f.skOn){yaw=f.aim;pitch=0;}document.body.classList.toggle('tps',CAM()==='tps');}}}
   if(sk(f,'shield')){f.shT-=dt;if(f.shT<=0)f.shield=Math.min(30,f.shield+10*dt);}
   f.jumpCd=(f.jumpCd||0)-dt;
@@ -1490,13 +1490,14 @@ function updF(f,inp,dt){
   if(inp.strike&&f.spk==='skybomb'&&f.sp>=100){const[tx,ty]=inp.strike;if(inBase){if(f.isP)say('スポーン地点からは打てません','#fff');}else if(!ownBaseM(tx,ty,f.team,10)){f.sp=0;f.spInk=0;act(f,21,tx,ty,0);}}
   else if(inp.special&&f.spk==='skybomb'&&f.sp>=100&&inBase){if(f.isP)baseHintT=1;}
   else if(inp.special&&f.spk==='skybomb'&&f.sp>=100){if(f.isP&&!(mapOpen&&mapMode==='strike'))openStrike();}
+  else if(inp.special&&f.spk==='soul'&&(f.soulCd>0||f.soulT>0)&&f.sp>=100){if(f.isP&&!f._cdMsg){f._cdMsg=1;sayS(`ソウルコントロールはあと${Math.ceil(f.soulCd||0)}秒使えません`,'#9fd0ff');}}
   else if(inp.special&&!inBase&&f.sp>=100&&f.laserT<=0&&!f.dive&&f.hoverT<=0&&!(f.bigT>0)){f.sp=0;f.spInk=0;act(f,SPT[f.spk]||5,f.x,f.y,f.aim,Math.round(inp.bombDist||300));}
   f.bob+=dt*(f.moving?14:4);
 }
 function remoteTick(f,dt){
   f.rollImm-=dt;f.hitT-=dt;
   if(f.dead>0)return;
-  f.h+=((f.th||0)-f.h)*Math.min(1,dt*14);if(f.hoverT>0)f.hoverT-=dt;if(f.bigT>0)f.bigT-=dt;if(f.soulT>0)f.soulT-=dt;
+  f.h+=((f.th||0)-f.h)*Math.min(1,dt*14);if(f.hoverT>0)f.hoverT-=dt;if(f.bigT>0)f.bigT-=dt;if(f.soulT>0){f.soulT-=dt;if(f.soulT<=0)f.soulCd=8;}if(f.soulCd>0)f.soulCd-=dt;
   const d=Math.hypot(f.tx-f.x,f.ty-f.y);
   if(d>160){f.x=f.tx;f.y=f.ty;}else{const k=Math.min(1,dt*14);f.x+=(f.tx-f.x)*k;f.y+=(f.ty-f.y)*k;}
   f.bob+=dt*(f.moving?14:4);
@@ -2564,13 +2565,14 @@ function drawHUD(){
     ctx.fillText(tps?'右をドラッグで向きを変える':(player.wpn==='charger'?'右でためて離して撃つ →':'右で狙って撃つ →'),tps?cw*.62:cw*.75,tps?ch*.45:ch-40);ctx.globalAlpha=1;
   }
   if(!usingTouch&&tps&&mouse.active&&state==='play'&&!locked()){ctx.font='700 13px system-ui,sans-serif';ctx.fillStyle='rgba(255,255,255,.7)';ctx.fillText('クリックでマウス視点操作（Escで解除）／ドラッグでも回転',cw/2,ch-24);}
-  const bOff=player.ink<SUBS[player.sub].cost,sReady=player.sp>=100;
+  const soulCd=player.spk==='soul'&&(player.soulCd>0||player.soulT>0),bOff=player.ink<SUBS[player.sub].cost,sReady=player.sp>=100&&!soulCd;if(!tSp)player._cdMsg=0;
   if(bombBtn._o!==bOff){bombBtn._o=bOff;bombBtn.classList.toggle('off',bOff);}
   if(player.wpn==='katana'){const cf=carrying(player);if(altBtn._cf!==cf){altBtn._cf=cf;altBtn.classList.toggle('off',cf);}const p=Math.min(1,(player.kAltT||0)/WPN.katana.chargeT);if(altBtn._p!==p){altBtn._p=p;altBtn.style.setProperty('--p',p);altBtn.classList.toggle('full',p>=1);}}
   const spv=Math.floor(player.sp);
-  if(spBtn._v!==spv+(sReady?SPS[player.spk].s:'')){spBtn._v=spv+(sReady?SPS[player.spk].s:'');
+  const cdTxt=soulCd&&player.soulT<=0?'あと'+Math.ceil(player.soulCd)+'秒':'';
+  if(spBtn._v!==spv+(sReady?SPS[player.spk].s:'')+cdTxt){spBtn._v=spv+(sReady?SPS[player.spk].s:'')+cdTxt;
     spBtn.style.background=`conic-gradient(${TEAM[myT()].c} ${spv*3.6}deg, rgba(40,30,70,.75) 0)`;
-    spBtn.classList.toggle('ready',sReady);spBtn.textContent=sReady?SPS[player.spk].s+'!':'SP';}
+    spBtn.classList.toggle('ready',sReady);spBtn.textContent=sReady?SPS[player.spk].s+'!':cdTxt?'SP\n'+cdTxt:'SP';}
   {const mo=mapOpen&&(state==='play'||state==='count');if(document.body._mo!==mo){document.body._mo=mo;document.body.classList.toggle('mapopen',mo);mapBtn.textContent=mo?'とじる':'マップ';}}
   if(mapOpen&&(state==='play'||state==='count'))drawBigMap();else{mapRect=null;if(cv.style.cursor)cv.style.cursor='';}
 }
