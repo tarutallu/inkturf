@@ -1334,12 +1334,11 @@ function drawClub(E,f,R){if(!CLUB_P){CLUB_P=[part('cyl',hex('#7a4a22'),[8,0,0],[
   const st=(performance.now()-(f.mswT||-1e9))/1000;let pitch=1;if(f.ai.wind>0)pitch=lerp(1,2.1,1-f.ai.wind/.28);else if(st<.25)pitch=lerp(2.1,-.3,ease3(st/.25));
   drawParts(E,CLUB_P,swordMat(R,{px:5,py:13,pz:12,yaw:-.25,pitch,roll:0}),TCOL[f.team],f.hitT>1.62,0,null);}
 function drawRankFx(E){if(!RANKM)return;const t=performance.now()/120;
-  if(player&&player.rkOut){const b=bases[player.team],g=gh(b.x,b.y);E.draw('cyl',TS(b.x,g+14,b.y,BASE_R,28,BASE_R),hex('#ffd23f'),.16+.05*Math.sin(t*.7),1);E.draw('torus',TS(b.x,g+1,b.y,BASE_R,6,BASE_R),hex('#ffd23f'),.8,1);}
   if(!rkFx.length)return;
   for(const w of rkFx){const g=gh(w.x,w.y)+1,a=.18+.12*Math.sin(t);E.draw('disc',TS(w.x,g,w.y,w.r2,1,w.r2),hex('#ff8a3b'),a*.6,1);E.draw('disc',TS(w.x,g+.3,w.y,w.r,1,w.r),hex('#ff2d2d'),a+.1,1);
     const k=Math.max(0,1-w.t/w.T);E.draw('torus',TS(w.x,g+.6,w.y,w.r*k,8,w.r*k),hex('#ffffff'),.6,1);}}
 function rankTick(dt){if(!RANKM||state!=='play')return;
-  if(player&&player.dead<=0&&!player.rkOut&&!player.sj){const b=bases[player.team];if(Math.hypot(player.x-b.x,player.y-b.y)>BASE_R+player.r+2){player.rkOut=true;sayS('スポーン地点は閉じられた！（やられるまで戻れません）','#ffd23f');}}for(let i=rkFx.length-1;i>=0;i--){rkFx[i].t-=dt;if(rkFx[i].t<=0)rkFx.splice(i,1);}
+  for(let i=rkFx.length-1;i>=0;i--){rkFx[i].t-=dt;if(rkFx[i].t<=0)rkFx.splice(i,1);}
   if(!fighters.some(f=>f.mob&&f.dead<=0))rankEnd(true);else if(RANK.deaths>=RANK.lives)rankEnd(false,'dead');}
 // rank missions are refreshed every 10 cleared levels: only the current band's missions can be done
 const rmBand=()=>Math.min(Math.max(...RMIS.map(m=>m.band)),Math.floor((PROF.rkLv||0)/10)+1);
@@ -1756,7 +1755,9 @@ function buildLayout(sk){
 }
 let STG,walls=[],pits=[],plats=[],ramps=[];
 let wallPl=[];
-function gh(x,y){if(!plats.length&&!ramps.length&&!wallPl.length)return 0;let g=0;
+const SPAWN_H=100; // spawn areas are raised pedestals (like Splatoon): you drop down from them and cannot climb back up
+const spawnZ=(x,y)=>{for(const b of bases)if((x-b.x)**2+(y-b.y)**2<BASE_R*BASE_R)return SPAWN_H;return 0;};
+function gh(x,y){if(!plats.length&&!ramps.length&&!wallPl.length)return bases.length?spawnZ(x,y):0;let g=bases.length?spawnZ(x,y):0;
   for(const p of plats)if(x>=p.x&&x<=p.x+p.w&&y>=p.y&&y<=p.y+p.h&&p.z>g)g=p.z;
   for(const p of wallPl)if(x>=p.x&&x<=p.x+p.w&&y>=p.y&&y<=p.y+p.h&&p.z>g)g=p.z;
   for(const r of ramps)if(x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h){const t=r.ax==='x'?(x-r.x)/r.w:(y-r.y)/r.h,z=r.z0+(r.z1-r.z0)*t;if(z>g)g=z;}
@@ -1847,7 +1848,7 @@ function blocked(x,y,r){
   if(x<r||y<r||x>W-r||y>H-r)return true;
   return rectHit(x,y,r,walls)||rectHit(x,y,r*.6,pits);
 }
-const fBlocked=(f,x,y)=>{const h=f.h||0,r=f.r;if(x<r||y<r||x>W-r||y>H-r)return true;if(inEnemyBase(x,y,f.team,r))return true;if(f.rkOut){const b=bases[f.team];if((x-b.x)**2+(y-b.y)**2<(BASE_R+r)**2)return true;}
+const fBlocked=(f,x,y)=>{const h=f.h||0,r=f.r;if(x<r||y<r||x>W-r||y>H-r)return true;if(inEnemyBase(x,y,f.team,r))return true;if(h<SPAWN_H-2&&bases[f.team]){const b=bases[f.team],R2=(BASE_R+r*.6)**2;if((x-b.x)**2+(y-b.y)**2<R2&&(f.x-b.x)**2+(f.y-b.y)**2>=R2)return true;}
   if(h<WALL_H-4&&rectHit(x,y,r*.7,walls))return true;if(h<4&&rectHit(x,y,r*.6,pits))return true;
   if(gh(x,y)>h+12)return true;return false;};
 function findFree(f){const h=f.h;if(!fBlocked(f,f.x,f.y)){return;}
@@ -1893,7 +1894,7 @@ function mkF(r,idx){
 }
 function spawn(f){
   const b=bases[f.team];f.x=f.tx=b.x+(f.team?-1:1)*20;f.y=f.ty=b.y+(f.slot-1.5)*55;
-  f.hp=100;f.ink=100;f.dead=0;f.swim=false;f.charge=0;f.slamP=0;f.hmMode=0;f.spawnT=1.5;f.dmgBy={};f.ast=[];f.shield=sk(f,'shield')?shMax(f):0;f.stunT=0;f.glCd=0;f.shT=0;f.h=f.th=f.vh=f.lvx=f.lvy=0;f.hoverT=0;f.bigT=0;f.soulT=0;f.soulSh=0;f.weakT=0;f.dive=false;f.aim=f.team?Math.PI:0;f.ai.t=0;
+  f.hp=100;f.ink=100;f.dead=0;f.swim=false;f.charge=0;f.slamP=0;f.hmMode=0;f.spawnT=1.5;f.dmgBy={};f.ast=[];f.shield=sk(f,'shield')?shMax(f):0;f.stunT=0;f.glCd=0;f.shT=0;f.vh=f.lvx=f.lvy=0;f.h=f.th=gh(f.x,f.y);f.hoverT=0;f.bigT=0;f.soulT=0;f.soulSh=0;f.weakT=0;f.dive=false;f.aim=f.team?Math.PI:0;f.ai.t=0;
   if(f.dummy&&f.home)placeDummy(f);
   if(f.mob)placeMob(f);
   f.rkOut=false;
@@ -2692,7 +2693,10 @@ function routeTo(f,tx,ty){
 function modeOf(){return MATCH?MATCH.set.mode:'turf';}
 function enemiesNear(f,x,y,r){let n=0;for(const e of fighters)if(e.team!==f.team&&e.dead<=0&&!inOwnBase(e.x,e.y,e.team)&&Math.hypot(e.x-x,e.y-y)<r)n++;return n;}
 function alliesNear(f,r){let n=0;for(const e of fighters)if(e!==f&&e.team===f.team&&e.dead<=0&&Math.hypot(e.x-f.x,e.y-f.y)<r)n++;return n;}
-function nearOwnInk(f){let best=null,bd=1e9;for(const r of[50,100,160,240])for(let k=0;k<12;k++){const a=k/12*6.283,x=f.x+Math.cos(a)*r,y=f.y+Math.sin(a)*r;if(cellAt(x,y)===f.team+1&&!blocked(x,y,f.r)){const d=r+(enemiesNear(f,x,y,200)*120);if(d<bd){bd=d;best=[x,y];}}if(best&&r>=100)break;}return best||[bases[f.team].x,bases[f.team].y];}
+// spawn is a raised pedestal: a CP that needs to go home super-jumps there instead of walking into the cliff
+function botGoHome(f,inp){if(!f.sj&&f.dead<=0&&!inOwnBase(f.x,f.y,f.team)){const b=bases[f.team];f.sj={a:f.idx,sx:f.x,sy:f.y,t:0,tx:b.x+(f.team?-1:1)*20,ty:b.y};f.hoverT=0;f.dive=false;}inp.mx=inp.my=0;inp.fire=false;return inp;}
+const homeTgt=(f,t)=>inOwnBase(t[0],t[1],f.team)&&!inOwnBase(f.x,f.y,f.team);
+function nearOwnInk(f){let best=null,bd=1e9;for(const r of[50,100,160,240])for(let k=0;k<12;k++){const a=k/12*6.283,x=f.x+Math.cos(a)*r,y=f.y+Math.sin(a)*r;if(cellAt(x,y)===f.team+1&&!blocked(x,y,f.r)&&!inOwnBase(x,y,f.team)){const d=r+(enemiesNear(f,x,y,200)*120);if(d<bd){bd=d;best=[x,y];}}if(best&&r>=100)break;}return best||[bases[f.team].x,bases[f.team].y];}
 function zoneOwner(){return online&&!amHost?MATCH.zc:zoneLocal;}
 // where should this CP go to play the current rule? (smarter CPs follow the rule more often)
 function objectiveTarget(f){
@@ -2790,12 +2794,12 @@ function botInput(f,dt){
   // retreat to heal (smarter CPs)
   if(A.retreat&&!(best&&bd<110)){
     if(own){inp.mx=0;inp.my=0;if(best){const a=Math.atan2(f.y-best.y,f.x-best.x);[inp.mx,inp.my]=steer(f,Math.cos(a),Math.sin(a));}return inp;}
-    const b=A.rp||[bases[f.team].x,bases[f.team].y];if(Math.hypot(b[0]-f.x,b[1]-f.y)<25)A.rp=nearOwnInk(f);[inp.mx,inp.my]=steer(f,b[0]-f.x,b[1]-f.y);if(best){inp.aim=Math.atan2(best.y-f.y,best.x-f.x);inp.fire=f.ink>15&&bd<w.range*.8;}return inp;
+    const b=A.rp||[bases[f.team].x,bases[f.team].y];if(Math.hypot(b[0]-f.x,b[1]-f.y)<25)A.rp=nearOwnInk(f);if(homeTgt(f,b))return botGoHome(f,inp);[inp.mx,inp.my]=steer(f,b[0]-f.x,b[1]-f.y);if(best){inp.aim=Math.atan2(best.y-f.y,best.x-f.x);inp.fire=f.ink>15&&bd<w.range*.8;}return inp;
   }
   if(A.refill&&!(best&&bd<140&&f.ink>3)){
     if(own){if(best){const a=Math.atan2(f.y-best.y,f.x-best.x);[inp.mx,inp.my]=steer(f,Math.cos(a),Math.sin(a));}return inp;}
-    if(iq>.45){if(!A.rp||Math.hypot(A.rp[0]-f.x,A.rp[1]-f.y)<25)A.rp=nearOwnInk(f);[inp.mx,inp.my]=steer(f,A.rp[0]-f.x,A.rp[1]-f.y);return inp;}
-    const b=bases[f.team];[inp.mx,inp.my]=steer(f,b.x-f.x,b.y-f.y);return inp;
+    if(iq>.45){if(!A.rp||Math.hypot(A.rp[0]-f.x,A.rp[1]-f.y)<25)A.rp=nearOwnInk(f);if(homeTgt(f,A.rp))return botGoHome(f,inp);[inp.mx,inp.my]=steer(f,A.rp[0]-f.x,A.rp[1]-f.y);return inp;}
+    const b=bases[f.team];if(homeTgt(f,[b.x,b.y]))return botGoHome(f,inp);[inp.mx,inp.my]=steer(f,b.x-f.x,b.y-f.y);return inp;
   }
   if(best){
     // lead the target (smarter CPs predict movement)
@@ -3050,7 +3054,7 @@ function playerInput(dt){
   if(tSp){inp.special=true;inp.bombDist=bombDist+40;}
   if(tJump)inp.jump=true;
   if(tSkill)inp.skill=true;
-  if(pendSJ!=null){if(pendSJ===-2){const b=bases[player.team];if(player.rkOut){sayS('ランクではスポーン地点に戻れません','#fff');}else if(!inOwnBase(player.x,player.y,player.team)){player.sj={a:player.idx,sx:player.x,sy:player.y,t:0,tx:b.x,ty:b.y};snd(400,.5,'sine',.05,2);}}else inp.sj=pendSJ;pendSJ=null;}
+  if(pendSJ!=null){if(pendSJ===-2){const b=bases[player.team];if(!inOwnBase(player.x,player.y,player.team)){player.sj={a:player.idx,sx:player.x,sy:player.y,t:0,tx:b.x,ty:b.y};snd(400,.5,'sine',.05,2);}}else inp.sj=pendSJ;pendSJ=null;}
   if(pendStrike){inp.strike=pendStrike;pendStrike=null;}
   inp.alt=altHeld||!!mouse.alt;
   if(mapOpen){inp.mx=inp.my=0;inp.fire=false;inp.alt=false;}
@@ -3115,10 +3119,13 @@ function render(now){
   if(MATCH&&ZM(MATCH.set.mode)){const zc=online&&!amHost?MATCH.zc:zoneLocal,col=zc<0?CW:TCOL[zc].c;
     E.draw('ring',TS(ZONE.x,1.1,ZONE.y,ZONE.r,1,ZONE.r),col,.95,1);E.draw('ring',TS(ZONE.x,1.1,ZONE.y,ZONE.r*.9,1,ZONE.r*.9),col,.35,1);
     for(let k=0;k<4;k++){const a=k*1.5708+now/2000;E.draw('cyl',TS(ZONE.x+Math.cos(a)*ZONE.r,15,ZONE.y+Math.sin(a)*ZONE.r,3,30,3),col,1,.6);}}
-  bases.forEach((b,t)=>{const pulse=.12+Math.sin(now/500+t)*.03;
-    E.draw('ring',TS(b.x,.9,b.y,BASE_R,1,BASE_R),CW,.8,1);
-    E.draw('cyl',TS(b.x,20,b.y,BASE_R,40,BASE_R),TCOL[t].l,pulse,1);
-    E.draw('torus',TS(b.x,40,b.y,BASE_R,BASE_R*.25,BASE_R),TCOL[t].c,.5,1);});
+  bases.forEach((b,t)=>{const pulse=.12+Math.sin(now/500+t)*.03,Z=SPAWN_H,sc=hex(STG.wall).map(v=>v*.85+.1);
+    E.draw('cyl',TS(b.x,Z/2,b.y,BASE_R,Z,BASE_R),sc);
+    for(let k=1;k<4;k++)E.draw('cyl',TS(b.x,Z*k/4,b.y,BASE_R+.8,2.5,BASE_R+.8),hex(STG.top));
+    E.draw('disc',TS(b.x,Z+.4,b.y,BASE_R,1,BASE_R),TCOL[t].c,1,.4);E.draw('disc',TS(b.x,Z+.6,b.y,BASE_R*.62,1,BASE_R*.62),TCOL[t].l,.55,1);
+    E.draw('ring',TS(b.x,Z+.9,b.y,BASE_R,1,BASE_R),CW,.8,1);
+    E.draw('cyl',TS(b.x,Z+20,b.y,BASE_R,40,BASE_R),TCOL[t].l,pulse,1);
+    E.draw('torus',TS(b.x,Z+40,b.y,BASE_R,BASE_R*.25,BASE_R),TCOL[t].c,.5,1);});
   drawDecals(E);drawRankFx(E);drawCoopFx(E);
   if(souls.length)drawSouls(E);
   for(const f of fighters)if(f.dead<=0){const bp=hitPos(f),bh=(f.h||0)+(sk(f,'dance')?Math.abs(Math.sin(performance.now()/130+f.idx))*4:0);if(f.soulT>0&&!f.swim)soulAura(E,f,bh,bp[0],bp[1]);if(f.soulSh>0&&!f.swim){const H1=bh,k=f.soulSh/100;E.draw('sphere',TS(bp[0],H1+17,bp[1],25,27,25),SOULC2,.1+.12*k+.04*Math.sin(performance.now()/120),1,3);}drawChar(E,f);if(f.bigT>0)drawBigRoller(E,f);}
